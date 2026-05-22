@@ -1,6 +1,6 @@
 CXX      = g++
 CXXFLAGS = -O3 -Wall -Wextra -std=c++0x
-LDFLAGS  = -lz
+LDFLAGS  = -lz -lpthread
 TARGET   = fastq_qc
 SRC      = fastq_qc.cpp
 

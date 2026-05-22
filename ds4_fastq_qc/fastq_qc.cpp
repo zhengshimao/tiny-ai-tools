@@ -28,6 +28,9 @@
 #include <algorithm>
 #include <iomanip>
 #include <unordered_set>
+#include <thread>
+#include <mutex>
+#include <atomic>
 #include <zlib.h>
 #include <sys/stat.h>
 
@@ -48,7 +51,9 @@ static const int QUAL_HIST_SIZE = 128;
 static const int CYCLE_ARRS = 34;   // 8+8+8+8+1+1 arrays
 static const char Q20_CHAR = '5';   // ASCII 53 = Q20
 static const char Q30_CHAR = '?';   // ASCII 63 = Q30
-static const int MIN_OVERLAP   = 30;    // minimum overlap for insert size
+static const int    MIN_OVERLAP             = 30;    // minimum overlap for insert size
+static const int    OVERLAP_DIFF_LIMIT       = 5;     // max mismatches in overlap (fastp default)
+static const double OVERLAP_DIFF_PERCENT_LIMIT = 0.20; // max mismatch rate in overlap (fastp default)
 
 // reverse complement a DNA sequence
 static string reverse_complement(const string& seq) {
@@ -79,14 +84,69 @@ static uint64_t fnv1a_64(const string& s) {
     return h;
 }
 
-// find longest exact overlap between suffix of r1 and prefix of rc_r2
-static int find_overlap(const string& r1, const string& rc_r2, int min_overlap = MIN_OVERLAP) {
-    int max_ov = min((int)r1.length(), (int)rc_r2.length());
-    for (int ov = max_ov; ov >= min_overlap; ov--) {
-        if (memcmp(r1.data() + r1.size() - ov, rc_r2.data(), ov) == 0)
-            return ov;
+// Count mismatches between two buffers, early-exit if exceeds limit
+static int count_mismatches(const char* a, const char* b, int len, int max_mismatch) {
+    int count = 0;
+    for (int i = 0; i < len; i++) {
+        if (a[i] != b[i]) {
+            count++;
+            if (count > max_mismatch) break;
+        }
     }
-    return 0;
+    return count;
+}
+
+// Overlap result matching fastp's OverlapResult semantics
+struct OverlapResult {
+    bool overlapped;
+    int  offset;       // >0: R2 shifted right relative to R1; <=0: R2 shifted left
+    int  overlap_len;
+};
+
+// Mismatch-tolerant overlap search (forward + reverse), ported from fastp v1.3.3
+// OverlapAnalysis::analyze().
+static OverlapResult find_overlap_tolerant(
+    const string& r1, const string& rc_r2,
+    int diffLimit, int overlapRequire, double diffPercentLimit)
+{
+    int len1 = (int)r1.length();
+    int len2 = (int)rc_r2.length();
+    const char* str1 = r1.c_str();
+    const char* str2 = rc_r2.c_str();
+
+    // Forward: offset >= 0  (R2 slides right relative to R1)
+    for (int offset = 0; offset < len1 - overlapRequire; offset++) {
+        int overlap_len = min(len1 - offset, len2);
+        int ovDiffLimit = min(diffLimit, (int)(overlap_len * diffPercentLimit));
+
+        if (count_mismatches(str1 + offset, str2, overlap_len, ovDiffLimit) <= ovDiffLimit) {
+            OverlapResult ov;
+            ov.overlapped  = true;
+            ov.offset      = offset;
+            ov.overlap_len = overlap_len;
+            return ov;
+        }
+    }
+
+    // Reverse: offset < 0  (R2 slides left; insert < read length, adapter sequenced)
+    for (int offset = -1; offset > -(len2 - overlapRequire); offset--) {
+        int overlap_len = min(len1, len2 - abs(offset));
+        int ovDiffLimit = min(diffLimit, (int)(overlap_len * diffPercentLimit));
+
+        if (count_mismatches(str1, str2 + (-offset), overlap_len, ovDiffLimit) <= ovDiffLimit) {
+            OverlapResult ov;
+            ov.overlapped  = true;
+            ov.offset      = offset;
+            ov.overlap_len = overlap_len;
+            return ov;
+        }
+    }
+
+    OverlapResult ov;
+    ov.overlapped  = false;
+    ov.offset      = 0;
+    ov.overlap_len = 0;
+    return ov;
 }
 
 static string fmt_long(long n, bool comma) {
@@ -510,6 +570,16 @@ public:
         return m_rate_percent ? 100.0 * ratio : ratio;
     }
 
+    // Q20+ base count at the 20th sequencing cycle (position 20, 0-based index 19)
+    long cycle20_bases() {
+        if (!m_summarized) summarize();
+        int c = 19;
+        if (c >= m_cycles) return 0;
+        long q20b = 0;
+        for (int b = 0; b < 8; b++) q20b += m_cycle_q20[b][c];
+        return q20b;
+    }
+
     double q40_rate() {
         if (!m_summarized) summarize();
         return (m_bases > 0) ? (m_rate_percent?100.0:1.0) * m_q40_total / m_bases : 0.0;
@@ -575,16 +645,18 @@ public:
         string tro = fmt_long(m_reads, true);
         string tba = fmt_long(m_bases, true);
         string tml = fmt_long(mean_length(), true);
+        string tgb = fmt_long(m_gc_bases, true);
         string tq2 = fmt_long(m_q20_total, true);
         string tq3 = fmt_long(m_q30_total, true);
         string tq4 = fmt_long(m_q40_total, true);
         string tcy = fmt_long(m_cycles, true);
+        string tc2 = fmt_long(cycle20_bases(), true);
 
         printf( "=== QC Summary ===\n");
         printf( "  %-20s %12s\n",     "Total reads:",   tro.c_str());
         printf( "  %-20s %12s\n",     "Total bases:",   tba.c_str());
         printf( "  %-20s %12s bp\n",  "Mean length:",   tml.c_str());
-        printf( "  %-20s %12s\n",      "GC content:",    gc_str.c_str());
+        printf( "  %-20s %12s  (%s)\n", "GC bases:",    tgb.c_str(), gc_str.c_str());
         printf( "  %-20s %12s  (%s)\n", "Q20 bases:",   tq2.c_str(), q20_str.c_str());
         printf( "  %-20s %12s  (%s)\n", "Q30 bases:",   tq3.c_str(), q30_str.c_str());
         printf( "  %-20s %12s  (%s)\n", "Q40 bases:",   tq4.c_str(), q40_str.c_str());
@@ -592,7 +664,7 @@ public:
         ostringstream c20_s;
         c20_s << fixed << setprecision(m_decimals) << cycle20_rate() << pct;
         string c20_str = c20_s.str();
-        printf( "  %-20s %12s\n",      "Cycle 20 Q20 rate:", c20_str.c_str());
+        printf( "  %-20s %12s  (%s)\n", "Cycle 20 Q20:", tc2.c_str(), c20_str.c_str());
 
         printf( "\n  Per-cycle mean quality (sampled):\n");
         printf( "    Cycle   MeanQual\n");
@@ -630,6 +702,7 @@ public:
         os << indent << "\"q40_rate\": "     << format_double(q40_rate(), m_decimals)  << "," << endl;
         os << indent << "\"gc_bases\": "     << fmt_json_long(m_gc_bases, m_json_comma)  << "," << endl;
         os << indent << "\"gc_content\": "   << format_double(gc_content(), m_decimals) << "," << endl;
+        os << indent << "\"cycle20_bases\": "  << fmt_json_long(cycle20_bases(), m_json_comma) << "," << endl;
         os << indent << "\"cycle20_rate\": "   << format_double(cycle20_rate(), m_decimals) << "," << endl;
 
         // ---- Quality curves ----
@@ -783,35 +856,81 @@ private:
 
 
 // ============================================================
-// DupCounter: hash-based exact duplicate detection
+// BloomFilter: fixed-memory probabilistic set for duplicate detection.
+// Uses Kirsch-Mitzenmacher double-hashing: h_i = h1 + i*h2.
+// Thread-safe via internal mutex.
+// ============================================================
+class BloomFilter {
+public:
+    // Default: 256 MB = 2^31 bits, 4 hash functions (~0.01% false positive at 100M items)
+    BloomFilter(size_t bits = 1ULL << 31, int num_hashes = 4)
+        : m_bit_size(bits), m_num_hashes(num_hashes)
+    {
+        m_bytes.resize((bits + 7) / 8, 0);
+    }
+
+    // Returns true if hash was already present (possible duplicate). Thread-safe.
+    bool test_and_set(uint64_t hash) {
+        uint64_t h1 = hash;
+        uint64_t h2 = hash >> 32;
+        if (h2 == 0) h2 = ~h1;
+
+        lock_guard<mutex> lock(m_mtx);
+        bool seen = true;
+        for (int i = 0; i < m_num_hashes; i++) {
+            uint64_t h = h1 + (uint64_t)i * h2;
+            size_t pos = h % m_bit_size;
+            size_t byte_idx = pos >> 3;
+            uint8_t bit = (uint8_t)(1 << (pos & 7));
+            if (!(m_bytes[byte_idx] & bit)) {
+                m_bytes[byte_idx] |= bit;
+                seen = false;
+            }
+        }
+        return seen;
+    }
+
+private:
+    size_t m_bit_size;
+    int    m_num_hashes;
+    vector<uint8_t> m_bytes;
+    mutex  m_mtx;
+};
+
+// ============================================================
+// DupCounter: Bloom-filter-based duplicate detection (ported from fastp approach)
 //
-// Uses FNV-1a 64-bit hash + unordered_set. For paired-end reads,
-// R1 and R2 hashes are combined via boost::hash_combine.
+// Uses FNV-1a hash + BloomFilter (fixed memory, ~256 MB default).
+// For paired-end reads, R1 and R2 hashes combined via hash_combine.
+// Can merge multiple counters (for multi-threaded use).
 // ============================================================
 class DupCounter {
 public:
     DupCounter() : m_total(0), m_dup(0) {}
 
     void add_read(const FastqRead& r) {
-        m_total++;
+        m_total.fetch_add(1, memory_order_relaxed);
         uint64_t h = fnv1a_64(r.seq);
-        if (m_seen.count(h)) m_dup++;
-        else                 m_seen.insert(h);
+        if (m_bf.test_and_set(h)) m_dup.fetch_add(1, memory_order_relaxed);
     }
 
     void add_pair(const FastqRead& r1, const FastqRead& r2) {
-        m_total++;
+        m_total.fetch_add(1, memory_order_relaxed);
         uint64_t h1 = fnv1a_64(r1.seq);
         uint64_t h2 = fnv1a_64(r2.seq);
-        // boost::hash_combine
         uint64_t h = h1 ^ (h2 + 0x9e3779b97f4a7c15ULL + (h1 << 6) + (h1 >> 2));
-        if (m_seen.count(h)) m_dup++;
-        else                 m_seen.insert(h);
+        if (m_bf.test_and_set(h)) m_dup.fetch_add(1, memory_order_relaxed);
     }
 
-    long   total()    const { return m_total; }
-    long   dup_count() const { return m_dup; }
-    double dup_rate()  const { return m_total > 0 ? (double)m_dup / m_total : 0.0; }
+    long   total()    const { return m_total.load(memory_order_relaxed); }
+    long   dup_count() const { return m_dup.load(memory_order_relaxed); }
+    double dup_rate()  const { long t = total(); return t > 0 ? (double)dup_count() / t : 0.0; }
+
+    // Merge another counter's totals (used only in single-threaded merge of thread-local stats)
+    void merge(const DupCounter& other) {
+        m_total.fetch_add(other.total(), memory_order_relaxed);
+        m_dup.fetch_add(other.dup_count(), memory_order_relaxed);
+    }
 
     void print(bool as_percent, int decimals) const {
         double val = as_percent ? dup_rate() * 100.0 : dup_rate();
@@ -830,9 +949,9 @@ public:
     }
 
 private:
-    unordered_set<uint64_t> m_seen;
-    long m_total;
-    long m_dup;
+    BloomFilter m_bf;
+    atomic_long m_total;
+    atomic_long m_dup;
 
     static string format_val(double v, int d) {
         ostringstream oss;
@@ -845,33 +964,37 @@ private:
 // ============================================================
 // InsertSizeStats: overlap-based insert size estimation (PE only)
 //
-// Reverse-complements R2, finds longest exact overlap with R1
-// suffix, computes insert_size = len(R1) + len(R2) - overlap.
-// Tracks histogram and finds the peak (mode).
+// Ported from fastp v1.3.3. Reverse-complements R2, finds mismatch-tolerant
+// overlap (forward + reverse), computes insert size. Non-overlapping pairs
+// default to m_max_size. Histogram peak is the mode. unknown() = hist[max].
 // ============================================================
 class InsertSizeStats {
 public:
     explicit InsertSizeStats(int max_size = 512)
-        : m_max_size(max_size), m_total(0), m_unknown(0), m_json_comma(false)
+        : m_max_size(max_size), m_total(0), m_json_comma(false)
     {
         m_hist.resize(max_size + 1, 0);
     }
 
+    // Ported from fastp v1.3.3 PairEndProcessor::statInsertSize()
     void process_pair(const FastqRead& r1, const FastqRead& r2) {
         m_total++;
         string rc_r2 = reverse_complement(r2.seq);
-        int overlap = find_overlap(r1.seq, rc_r2);
-        if (overlap > 0) {
-            int isize = r1.length() + r2.length() - overlap;
-            if (isize >= m_max_size)
-                m_hist[m_max_size]++;
-            else if (isize > 0)
-                m_hist[isize]++;
+        OverlapResult ov = find_overlap_tolerant(r1.seq, rc_r2,
+            OVERLAP_DIFF_LIMIT, MIN_OVERLAP, OVERLAP_DIFF_PERCENT_LIMIT);
+
+        int isize = m_max_size;
+        if (ov.overlapped) {
+            if (ov.offset > 0)
+                isize = r1.length() + r2.length() - ov.overlap_len;
             else
-                m_unknown++;
-        } else {
-            m_unknown++;
+                isize = ov.overlap_len;
         }
+
+        if (isize > m_max_size)
+            isize = m_max_size;
+
+        m_hist[isize]++;
     }
 
     int  peak()    const {
@@ -883,12 +1006,13 @@ public:
         return pk;
     }
     long total()   const { return m_total; }
-    long unknown() const { return m_unknown; }
+    // Matches fastp: unknown = histogram count at insertSizeMax
+    long unknown() const { return m_hist[m_max_size]; }
 
     void print() const {
         int pk = peak();
         string spk = fmt_long(pk, true);
-        string sun = fmt_long(m_unknown, true);
+        string sun = fmt_long(unknown(), true);
         printf( "  %-20s %12s\n",   "Insert size peak:", spk.c_str());
         printf( "  %-20s %12s\n",  "Unknown pairs:",   sun.c_str());
     }
@@ -898,7 +1022,7 @@ public:
     void report_json(ostream& os, const string& indent) {
         os << indent << "\"insert_size\": {" << endl;
         os << indent << "\t\"peak\": " << fmt_json_long(peak(), m_json_comma) << "," << endl;
-        os << indent << "\t\"unknown\": " << fmt_json_long(m_unknown, m_json_comma) << "," << endl;
+        os << indent << "\t\"unknown\": " << fmt_json_long(unknown(), m_json_comma) << "," << endl;
         os << indent << "\t\"histogram\": [";
         for (int i = 0; i <= m_max_size; i++) {
             if (i > 0) os << ",";
@@ -912,7 +1036,6 @@ private:
     vector<long> m_hist;
     int  m_max_size;
     long m_total;
-    long m_unknown;
     bool m_json_comma;
 };
 
@@ -931,8 +1054,9 @@ struct QcConfig {
     string sample_id;
     bool   tsv_comma;
     bool   json_comma;
+    int    threads;       // Number of worker threads (default: 1)
 
-    QcConfig() : rate_percent(true), decimals(2), insert_size_max(512), tsv_comma(false), json_comma(false) {}
+    QcConfig() : rate_percent(false), decimals(6), insert_size_max(512), tsv_comma(false), json_comma(false), threads(1) {}
 };
 
 static void print_usage(const char* prog) {
@@ -944,19 +1068,21 @@ static void print_usage(const char* prog) {
         "                 Gzip auto-detected by .gz extension or magic bytes.\n"
         "  -I <file>     Input R2 FASTQ file (enables paired-end mode).\n"
         "  -o <file>     Output JSON report to file (omitted = no JSON output).\n"
-        "  -no-percent   Output rate values as decimals (0.0-1.0) instead of percentages.\n"
-        "  -d <n>        Set decimal places for rate values (default: 2).\n"
+        "  -percent      Output rate values as percentages (0-100).\n"
+        "                 Default: decimals (0.0-1.0).\n"
+        "  -d <n>        Set decimal places for rate values (default: 6).\n"
         "  -is <n>       Max insert size (default: 512). Paired-end only.\n"
         "  -p <prefix>   Export TSV tables (summary + per-cycle) with this prefix.\n"
         "  -s <id>       Sample ID for TSV output (default: derived from filename).\n"
         "  --tsv-comma   Add thousands separators in TSV output.\n"
         "  --json-comma  Add thousands separators in JSON output (as strings).\n"
+        "  -t <n>        Number of worker threads (default: 1).\n"
         "  -h            Show this help.\n"
         "\n"
         "Examples:\n"
         "  %s -i sample_R1.fastq -I sample_R2.fastq -o qc_report.json\n"
         "  %s -i sample.fastq.gz -o qc_report.json\n"
-        "  %s -i sample.fastq -t\n",
+        "  %s -i sample.fastq.gz -t 4\n",
         prog, prog, prog, prog);
 }
 
@@ -972,8 +1098,8 @@ static bool parse_args(int argc, char* argv[], QcConfig& config) {
         } else if (arg == "-o") {
             if (++i >= argc) { cerr << "Error: -o requires an argument" << endl; return false; }
             config.output_file = argv[i];
-        } else if (arg == "-no-percent") {
-            config.rate_percent = false;
+        } else if (arg == "-percent") {
+            config.rate_percent = true;
         } else if (arg == "-d") {
             if (++i >= argc) { cerr << "Error: -d requires an argument" << endl; return false; }
             config.decimals = atoi(argv[i]);
@@ -990,6 +1116,10 @@ static bool parse_args(int argc, char* argv[], QcConfig& config) {
             config.tsv_comma = true;
         } else if (arg == "--json-comma") {
             config.json_comma = true;
+        } else if (arg == "-t") {
+            if (++i >= argc) { cerr << "Error: -t requires an argument" << endl; return false; }
+            config.threads = atoi(argv[i]);
+            if (config.threads < 1) config.threads = 1;
         } else if (arg == "-h") {
             print_usage(argv[0]);
             exit(0);
@@ -1067,24 +1197,100 @@ int main(int argc, char* argv[]) {
     long read_count = 0;
 
     fprintf(stderr, "Processing %s FASTQ data...\n", paired ? "paired-end" : "single-end");
+    if (config.threads > 1) {
+        fprintf(stderr, "  Using %d threads\n", config.threads);
+    }
 
-    while (reader1.read(r1)) {
-        if (paired) {
-            if (!reader2->read(r2)) {
-                cerr << "Warning: R1 has more reads than R2 at read " << (read_count + 1) << endl;
-                break;
+    static const long BATCH_SIZE = 500000;
+
+    if (config.threads <= 1) {
+        // ---- Single-threaded ----
+        while (reader1.read(r1)) {
+            if (paired) {
+                if (!reader2->read(r2)) {
+                    cerr << "Warning: R1 has more reads than R2 at read " << (read_count + 1) << endl;
+                    break;
+                }
+                stats2.process_read(r2);
+                dup_counter.add_pair(r1, r2);
+                isize_stats->process_pair(r1, r2);
+            } else {
+                dup_counter.add_read(r1);
             }
-            stats2.process_read(r2);
-            dup_counter.add_pair(r1, r2);
-            isize_stats->process_pair(r1, r2);
-        } else {
-            dup_counter.add_read(r1);
+            stats1.process_read(r1);
+            read_count++;
+            if (read_count % 500000 == 0) {
+                fprintf(stderr, "  Processed %s reads...\n", fmt_long(read_count, true).c_str());
+            }
         }
+    } else {
+        // ---- Multi-threaded batch processing ----
+        int nthreads = config.threads;
+        vector<FastqRead> batch_r1, batch_r2;
+        batch_r1.reserve(BATCH_SIZE);
+        if (paired) batch_r2.reserve(BATCH_SIZE);
 
-        stats1.process_read(r1);
+        while (true) {
+            // Read batch
+            batch_r1.clear();
+            batch_r2.clear();
+            long batch_read = 0;
+            for (; batch_read < BATCH_SIZE; batch_read++) {
+                if (!reader1.read(r1)) break;
+                if (paired && !reader2->read(r2)) {
+                    cerr << "Warning: R1 has more reads than R2" << endl;
+                    break;
+                }
+                batch_r1.push_back(r1);
+                if (paired) batch_r2.push_back(r2);
+            }
+            if (batch_read == 0) break;
+            read_count += batch_read;
 
-        read_count++;
-        if (read_count % 500000 == 0) {
+            // Per-thread partial stats (DupCounter is shared, QcStats are local)
+            vector<QcStats> t_stats1(nthreads), t_stats2(nthreads);
+            for (int t = 0; t < nthreads; t++) {
+                t_stats1[t].set_rate_percent(config.rate_percent);
+                t_stats1[t].set_decimals(config.decimals); t_stats1[t].set_json_comma(config.json_comma);
+                t_stats2[t].set_rate_percent(config.rate_percent);
+                t_stats2[t].set_decimals(config.decimals); t_stats2[t].set_json_comma(config.json_comma);
+            }
+
+            long chunk = (batch_read + nthreads - 1) / nthreads;
+            vector<thread> workers;
+            for (int t = 0; t < nthreads; t++) {
+                long start = t * chunk;
+                long end = min(start + chunk, batch_read);
+                if (start >= end) break;
+                workers.emplace_back([&, t, start, end]() {
+                    for (long j = start; j < end; j++) {
+                        const FastqRead& rr1 = batch_r1[j];
+                        if (paired) {
+                            const FastqRead& rr2 = batch_r2[j];
+                            t_stats2[t].process_read(rr2);
+                            dup_counter.add_pair(rr1, rr2);
+                        } else {
+                            dup_counter.add_read(rr1);
+                        }
+                        t_stats1[t].process_read(rr1);
+                    }
+                });
+            }
+            for (auto& w : workers) w.join();
+
+            // Merge per-thread QcStats (DupCounter is already shared)
+            for (int t = 0; t < nthreads; t++) {
+                stats1.merge(t_stats1[t]);
+                if (paired) stats2.merge(t_stats2[t]);
+            }
+
+            // Insert size: single-threaded (histogram is not thread-safe)
+            if (paired) {
+                for (long j = 0; j < batch_read; j++) {
+                    isize_stats->process_pair(batch_r1[j], batch_r2[j]);
+                }
+            }
+
             fprintf(stderr, "  Processed %s reads...\n", fmt_long(read_count, true).c_str());
         }
     }
@@ -1151,11 +1357,20 @@ int main(int argc, char* argv[]) {
             combined.merge(stats2);
             combined.summarize();
             out_file << "," << endl;
-            out_file << "\t\"total_reads\": " << fmt_json_long(combined.total_reads(), config.json_comma) << "," << endl;
-            out_file << "\t\"total_bases\": " << fmt_json_long(combined.total_bases(), config.json_comma) << "," << endl;
-            out_file << "\t\"q20_rate\": "    << QcStats::format_double(combined.q20_rate(), config.decimals)    << "," << endl;
-            out_file << "\t\"q30_rate\": "    << QcStats::format_double(combined.q30_rate(), config.decimals)    << "," << endl;
-            out_file << "\t\"gc_content\": "  << QcStats::format_double(combined.gc_content(), config.decimals)  << "," << endl;
+            out_file << "\t\"total_reads\": "   << fmt_json_long(combined.total_reads(), config.json_comma)   << "," << endl;
+            out_file << "\t\"total_bases\": "   << fmt_json_long(combined.total_bases(), config.json_comma)   << "," << endl;
+            out_file << "\t\"total_cycles\": "  << fmt_json_long(combined.total_cycles(), config.json_comma)  << "," << endl;
+            out_file << "\t\"mean_length\": "   << fmt_json_long(combined.mean_length(), config.json_comma)   << "," << endl;
+            out_file << "\t\"gc_bases\": "      << fmt_json_long(combined.total_gc(), config.json_comma)      << "," << endl;
+            out_file << "\t\"gc_content\": "    << QcStats::format_double(combined.gc_content(), config.decimals)  << "," << endl;
+            out_file << "\t\"q20_bases\": "     << fmt_json_long(combined.total_q20(), config.json_comma)     << "," << endl;
+            out_file << "\t\"q20_rate\": "      << QcStats::format_double(combined.q20_rate(), config.decimals)    << "," << endl;
+            out_file << "\t\"q30_bases\": "     << fmt_json_long(combined.total_q30(), config.json_comma)     << "," << endl;
+            out_file << "\t\"q30_rate\": "      << QcStats::format_double(combined.q30_rate(), config.decimals)    << "," << endl;
+            out_file << "\t\"q40_bases\": "     << fmt_json_long(combined.total_q40(), config.json_comma)     << "," << endl;
+            out_file << "\t\"q40_rate\": "      << QcStats::format_double(combined.q40_rate(), config.decimals)    << "," << endl;
+            out_file << "\t\"cycle20_bases\": " << fmt_json_long(combined.cycle20_bases(), config.json_comma) << "," << endl;
+            out_file << "\t\"cycle20_rate\": "  << QcStats::format_double(combined.cycle20_rate(), config.decimals)  << "," << endl;
             dup_counter.report_json(out_file, "\t", config.rate_percent, config.decimals);
             out_file << "," << endl;
             isize_stats->report_json(out_file, "\t");
@@ -1176,8 +1391,8 @@ int main(int argc, char* argv[]) {
         string sample = config.sample_id.empty() ? basename_noext(config.read1_file) : config.sample_id;
         double mult  = config.rate_percent ? 100.0 : 1.0;
 
-        string sum_hdr = "sample\ttotal_reads\ttotal_bases\tmean_length"
-                         "\tgc_content\tq20_rate\tq30_rate\tq40_bases\tq40_rate\tcycle20_rate\tdup_rate";
+        string sum_hdr = "sample\ttotal_reads\ttotal_bases\ttotal_cycles\tmean_length"
+                         "\tgc_bases\tgc_content\tq20_bases\tq20_rate\tq30_bases\tq30_rate\tq40_bases\tq40_rate\tcycle20_rate\tdup_rate";
         string sum_pe_ext = "\tinsert_size_peak\tinsert_size_unknown";
 
         if (paired) {
@@ -1189,9 +1404,13 @@ int main(int argc, char* argv[]) {
                 r1s << sample
                     << "\t" << fmt_long(stats1.total_reads(), config.tsv_comma)
                     << "\t" << fmt_long(stats1.total_bases(), config.tsv_comma)
+                    << "\t" << fmt_long(stats1.total_cycles(), config.tsv_comma)
                     << "\t" << fmt_long(stats1.mean_length(), config.tsv_comma)
+                    << "\t" << fmt_long(stats1.total_gc(), config.tsv_comma)
                     << "\t" << fixed << setprecision(config.decimals) << stats1.gc_content()
+                    << "\t" << fmt_long(stats1.total_q20(), config.tsv_comma)
                     << "\t" << fixed << setprecision(config.decimals) << stats1.q20_rate()
+                    << "\t" << fmt_long(stats1.total_q30(), config.tsv_comma)
                     << "\t" << fixed << setprecision(config.decimals) << stats1.q30_rate()
                     << "\t" << fmt_long(stats1.total_q40(), config.tsv_comma)
                     << "\t" << fixed << setprecision(config.decimals) << stats1.q40_rate()
@@ -1212,9 +1431,13 @@ int main(int argc, char* argv[]) {
                 r2s << sample
                     << "\t" << fmt_long(stats2.total_reads(), config.tsv_comma)
                     << "\t" << fmt_long(stats2.total_bases(), config.tsv_comma)
+                    << "\t" << fmt_long(stats2.total_cycles(), config.tsv_comma)
                     << "\t" << fmt_long(stats2.mean_length(), config.tsv_comma)
+                    << "\t" << fmt_long(stats2.total_gc(), config.tsv_comma)
                     << "\t" << fixed << setprecision(config.decimals) << stats2.gc_content()
+                    << "\t" << fmt_long(stats2.total_q20(), config.tsv_comma)
                     << "\t" << fixed << setprecision(config.decimals) << stats2.q20_rate()
+                    << "\t" << fmt_long(stats2.total_q30(), config.tsv_comma)
                     << "\t" << fixed << setprecision(config.decimals) << stats2.q30_rate()
                     << "\t" << fmt_long(stats2.total_q40(), config.tsv_comma)
                     << "\t" << fixed << setprecision(config.decimals) << stats2.q40_rate()
@@ -1237,18 +1460,23 @@ int main(int argc, char* argv[]) {
             string comb_sum = config.tsv_prefix + "_combined_summary.tsv";
             ofstream cs(comb_sum.c_str());
             if (cs.is_open()) {
-                cs << "sample\ttotal_reads\ttotal_bases\tmean_length"
-                   << "\tgc_content\tq20_rate\tq30_rate\tq40_bases\tq40_rate\tdup_rate"
+                cs << "sample\ttotal_reads\ttotal_bases\ttotal_cycles\tmean_length"
+                   << "\tgc_bases\tgc_content\tq20_bases\tq20_rate\tq30_bases\tq30_rate\tq40_bases\tq40_rate\tcycle20_rate\tdup_rate"
                    << sum_pe_ext << endl;
                 cs << sample
                    << "\t" << fmt_long(combined.total_reads(), config.tsv_comma)
                    << "\t" << fmt_long(combined.total_bases(), config.tsv_comma)
+                   << "\t" << fmt_long(combined.total_cycles(), config.tsv_comma)
                    << "\t" << fmt_long(combined.mean_length(), config.tsv_comma)
+                   << "\t" << fmt_long(combined.total_gc(), config.tsv_comma)
                    << "\t" << fixed << setprecision(config.decimals) << combined.gc_content()
+                   << "\t" << fmt_long(combined.total_q20(), config.tsv_comma)
                    << "\t" << fixed << setprecision(config.decimals) << combined.q20_rate()
+                   << "\t" << fmt_long(combined.total_q30(), config.tsv_comma)
                    << "\t" << fixed << setprecision(config.decimals) << combined.q30_rate()
                    << "\t" << fmt_long(combined.total_q40(), config.tsv_comma)
                    << "\t" << fixed << setprecision(config.decimals) << combined.q40_rate()
+                   << "\t" << fixed << setprecision(config.decimals) << combined.cycle20_rate()
                    << "\t" << fixed << setprecision(config.decimals) << (mult * dup_counter.dup_rate())
                    << "\t" << fmt_long(isize_stats->peak(), config.tsv_comma)
                    << "\t" << fmt_long(isize_stats->unknown(), config.tsv_comma)
@@ -1265,9 +1493,13 @@ int main(int argc, char* argv[]) {
                 sum_out << sample
                         << "\t" << fmt_long(stats1.total_reads(), config.tsv_comma)
                         << "\t" << fmt_long(stats1.total_bases(), config.tsv_comma)
+                        << "\t" << fmt_long(stats1.total_cycles(), config.tsv_comma)
                         << "\t" << fmt_long(stats1.mean_length(), config.tsv_comma)
+                        << "\t" << fmt_long(stats1.total_gc(), config.tsv_comma)
                         << "\t" << fixed << setprecision(config.decimals) << stats1.gc_content()
+                        << "\t" << fmt_long(stats1.total_q20(), config.tsv_comma)
                         << "\t" << fixed << setprecision(config.decimals) << stats1.q20_rate()
+                        << "\t" << fmt_long(stats1.total_q30(), config.tsv_comma)
                         << "\t" << fixed << setprecision(config.decimals) << stats1.q30_rate()
                         << "\t" << fmt_long(stats1.total_q40(), config.tsv_comma)
                         << "\t" << fixed << setprecision(config.decimals) << stats1.q40_rate()

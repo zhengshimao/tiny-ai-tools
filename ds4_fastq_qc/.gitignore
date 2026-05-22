@@ -1,0 +1,16 @@
+# Compiled binary
+fastq_qc
+
+# Third-party source
+fastp-1.3.3/
+
+# Test data files
+*.fq.gz
+*.fastq.gz
+
+# Benchmark reference files
+*_fastp.json
+*_fastp.html
+
+# Test output directories
+test*/
