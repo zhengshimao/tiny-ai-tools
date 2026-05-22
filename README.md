@@ -1,0 +1,27 @@
+# tiny-ai-tools 🤖🧬
+
+> AI-generated tiny utilities for bioinformatics tasks
+
+一个存放由 AI（ChatGPT / DeepSeek 等）生成的小巧、实用的生物信息学工具集合。每个工具独立、开箱即用，解决日常数据分析中的小痛点。
+
+---
+
+## 📦 工具列表
+
+| 工具                            | 描述                                                         | 主要功能                                                     |
+| ------------------------------- | ------------------------------------------------------------ | ------------------------------------------------------------ |
+| [ds4_fastq_qc](./ds4_fastq_qc/) | 基于 fastp v1.3.3 的轻量 FASTQ 质控工具，单文件 C++，支持单双端、gzip 自动识别、多格式输出 | per-cycle 质量/含量/GC 统计 · Q20/Q30/Q40 检测 · 重复率 · 插入片段峰值 · 文本/JSON/TSV 输出。 |
+
+*更多工具持续添加中…*
+
+---
+
+## 🚀 使用方式
+
+每个工具均包含详细的README.md和html文档。
+
+```bash
+# 克隆仓库
+git clone https://github.com/zhengshimao/tiny-ai-tools.git
+
+# 进入对应工具目录，打开 html说明文档查看工具说明
