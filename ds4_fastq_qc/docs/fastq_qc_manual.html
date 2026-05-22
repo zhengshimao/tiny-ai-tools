@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>fastq_qc — Lightweight FASTQ Quality Control Tool</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --fg: #24292f;
+    --muted: #656d76;
+    --border: #d0d7de;
+    --code-bg: #f6f8fa;
+    --accent: #0969da;
+    --terminal-bg: #1d1f21;
+    --terminal-fg: #c5c8c6;
+    --terminal-green: #b5bd68;
+    --terminal-blue: #81a2be;
+    --terminal-cyan: #8abeb7;
+    --terminal-yellow: #f0c674;
+    --red: #cf222e;
+    --green: #1a7f37;
+    --box-bg: #f6f8fa;
+    --table-stripe: #f6f8fa;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    color: var(--fg); background: var(--bg);
+    line-height: 1.6; max-width: 960px; margin: 0 auto; padding: 2rem 1.5rem;
+  }
+  h1 { font-size: 2rem; border-bottom: 1px solid var(--border); padding-bottom: .3em; margin-bottom: .5em; }
+  h2 { font-size: 1.5rem; border-bottom: 1px solid var(--border); padding-bottom: .3em; margin: 1.5em 0 .5em; }
+  h3 { font-size: 1.25rem; margin: 1.2em 0 .4em; }
+  h4 { font-size: 1rem; margin: 1em 0 .3em; }
+  p, li { margin-bottom: .5em; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  ul, ol { padding-left: 2em; margin-bottom: .8em; }
+  code {
+    font-family: "SF Mono", "Fira Code", "Fira Mono", Menlo, Consolas, monospace;
+    background: var(--code-bg); padding: .15em .4em; border-radius: 3px; font-size: .9em;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--border); border-radius: 6px;
+    padding: 1rem; overflow-x: auto; margin-bottom: 1em; font-size: .88em; line-height: 1.5;
+  }
+  pre code { background: none; padding: 0; }
+
+  /* white code block */
+  .code-block {
+    background: #ffffff; border: 1px solid var(--border); border-radius: 6px;
+    padding: 1rem; overflow-x: auto; margin-bottom: 1em; font-size: .88em; line-height: 1.5;
+    font-family: "SF Mono", Menlo, Consolas, monospace; white-space: pre;
+  }
+  .code-block .p { color: #1a7f37; }  /* green prompt */
+  .code-block .c { color: #0969da; }  /* blue command */
+  .code-block .o { color: #656d76; }  /* muted output */
+
+  /* Mac terminal block */
+  .terminal {
+    background: var(--terminal-bg); color: var(--terminal-fg);
+    border-radius: 8px; margin-bottom: 1.2em; overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0,0,0,.15);
+  }
+  .terminal-bar {
+    background: #373b3e; padding: 8px 12px; display: flex; gap: 6px; align-items: center;
+  }
+  .terminal-bar span { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
+  .terminal-bar .red  { background: #ff5f56; }
+  .terminal-bar .yel  { background: #ffbd2e; }
+  .terminal-bar .grn  { background: #27c93f; }
+  .terminal-bar .ttl  { color: #9aa0a6; font-size: .75em; margin-left: 8px; flex: 1; }
+  .terminal-body {
+    padding: 1rem 1.2rem; font-family: "SF Mono", Menlo, Consolas, monospace;
+    font-size: .85em; line-height: 1.6; overflow-x: auto; white-space: pre;
+  }
+  .terminal-body .p { color: var(--terminal-green); }
+  .terminal-body .c { color: var(--terminal-blue); }
+  .terminal-body .o { color: var(--terminal-cyan); }
+
+  .table-wrap { overflow-x: auto; margin-bottom: 1em; border: 1px solid var(--border); border-radius: 6px; }
+  table {
+    width: 100%; border-collapse: collapse; min-width: 600px;
+  }
+  th, td { padding: .5em .8em; text-align: left; border-bottom: 1px solid var(--border); }
+  th { background: var(--code-bg); font-weight: 600; }
+  tr:nth-child(even) td { background: var(--table-stripe); }
+
+  .info-box {
+    border-left: 4px solid var(--accent); background: #ddf4ff; padding: .8em 1em;
+    margin-bottom: 1em; border-radius: 0 6px 6px 0;
+  }
+  .warn-box {
+    border-left: 4px solid #bf8700; background: #fff8c5; padding: .8em 1em;
+    margin-bottom: 1em; border-radius: 0 6px 6px 0;
+  }
+
+  /* Flowchart */
+  .flowchart { text-align: center; margin: 1.5em 0; }
+  .flowchart svg { max-width: 100%; }
+
+  .flow-row { display: flex; justify-content: center; align-items: center; gap: 0; flex-wrap: wrap; margin: 0; }
+  .flow-node {
+    background: var(--accent); color: #fff; padding: .5em 1.2em; border-radius: 8px;
+    font-weight: 600; font-size: .85em; display: inline-block; white-space: nowrap;
+  }
+  .flow-node.gray  { background: #6e7781; }
+  .flow-node.green { background: var(--green); }
+  .flow-node.red   { background: var(--red); }
+  .flow-arrow {
+    font-size: 1.4em; color: var(--muted); padding: 0 .4em; display: inline-block;
+  }
+  .flow-vline {
+    width: 2px; height: 30px; background: var(--muted); margin: 0 auto;
+  }
+  .flow-hline {
+    display: inline-block; width: 40px; height: 2px; background: var(--muted);
+  }
+  .flow-branch { display: flex; justify-content: center; gap: 3rem; margin: .3em 0; flex-wrap: wrap; }
+  .flow-branch-item { text-align: center; }
+
+  .toc { background: var(--box-bg); border: 1px solid var(--border); border-radius: 6px; padding: 1em 1.5em; margin-bottom: 2em; }
+  .toc ul { margin-bottom: 0; }
+  .toc li { margin-bottom: .2em; }
+
+  .badge {
+    display: inline-block; padding: .15em .6em; border-radius: 2em; font-size: .75em; font-weight: 600;
+  }
+  .badge.alg  { background: #ddf4ff; color: #0969da; }
+  .badge.io   { background: #dafbe1; color: #1a7f37; }
+  .badge.warn { background: #fff8c5; color: #9a6700; }
+
+  footer {
+    margin-top: 3em; padding-top: 1em; border-top: 1px solid var(--border);
+    color: var(--muted); font-size: .85em;
+  }
+</style>
+</head>
+<body>
+
+<h1>fastq_qc</h1>
+<p>
+  <strong>Lightweight FASTQ Quality Control Tool</strong> &mdash; 提取并改写自
+  <a href="https://github.com/OpenGene/fastp/archive/refs/tags/v1.3.3.zip">fastp v1.3.3</a> 的核心质控算法。
+  支持单端/双端 FASTQ，自动识别 gzip 压缩，输出文本摘要、JSON 报告、TSV 表格。
+</p>
+<p>
+  <span class="badge alg">C++</span>
+  <span class="badge io">zlib</span>
+  <span class="badge io">single-file</span>
+  <span class="badge alg">fastp-derived</span>
+</p>
+
+<!-- ==================== TOC ==================== -->
+<div class="toc">
+<strong>目录</strong>
+<ol>
+  <li><a href="#overview">概述与设计思路</a></li>
+  <li><a href="#install">编译安装</a></li>
+  <li><a href="#usage">使用示例</a></li>
+  <li><a href="#options">命令行选项</a></li>
+  <li><a href="#flow">处理流程</a></li>
+  <li><a href="#arch">类与函数说明</a></li>
+  <li><a href="#algorithms">算法详解</a></li>
+  <li><a href="#input">输入格式</a></li>
+  <li><a href="#output">输出文件格式</a></li>
+  <li><a href="#samples">输出示例</a></li>
+  <li><a href="#notes">注意事项</a></li>
+</ol>
+</div>
+
+<!-- ==================== 1. OVERVIEW ==================== -->
+<h2 id="overview">1. 概述与设计思路</h2>
+
+<p>fastq_qc 从 fastp 中提取了质量指标统计引擎，重写为独立的单文件 C++ 工具。设计目标：</p>
+<ul>
+  <li><strong>轻量</strong> —— 单文件源码，仅依赖 zlib</li>
+  <li><strong>兼容 fastp</strong> —— 核心数据布局（34 数组循环统计）与 fastp 一致</li>
+  <li><strong>双端感知</strong> —— 单端/双端共用同一代码路径，自动适配</li>
+  <li><strong>多格式输出</strong> —— 文本摘要、JSON 报告、TSV 表格任选组合</li>
+  <li><strong>gzip 透明读取</strong> —— 通过扩展名和 magic bytes 自动识别</li>
+</ul>
+
+<!-- ==================== 2. INSTALL ==================== -->
+<h2 id="install">2. 编译安装</h2>
+
+<div class="code-block"><span class="p">$</span> <span class="c">cd</span> fastq_qc
+<span class="p">$</span> make
+g++ -O3 -Wall -Wextra -std=c++0x -o fastq_qc fastq_qc.cpp -lz
+
+<span class="p">$</span> ./fastq_qc -h
+Usage: ./fastq_qc [options] -i &lt;read1.fastq&gt; [-I &lt;read2.fastq&gt;]
+...</div>
+
+<div class="info-box">
+  <strong>依赖</strong>：g++ ≥ 4.6，zlib (libz-dev / zlib-devel)。
+  Windows 下建议在 <strong>WSL</strong> 中编译。
+</div>
+
+<!-- ==================== 3. USAGE ==================== -->
+<h2 id="usage">3. 使用示例</h2>
+
+<h4>3.1 单端 FASTQ，仅文本摘要</h4>
+<div class="code-block"><span class="p">$</span> ./fastq_qc -i sample.fq.gz</div>
+
+<h4>3.2 单端 FASTQ + JSON 报告</h4>
+<div class="code-block"><span class="p">$</span> ./fastq_qc -i sample.fq.gz -o qc_report.json</div>
+
+<h4>3.3 双端 FASTQ + JSON + TSV</h4>
+<div class="code-block"><span class="p">$</span> ./fastq_qc -i R1.fq.gz -I R2.fq.gz -o report.json -p sample1</div>
+
+<h4>3.4 小数模式 + 千分位 + 样本 ID</h4>
+<div class="code-block"><span class="p">$</span> ./fastq_qc -i R1.fq.gz -I R2.fq.gz \
+    -o report.json -p sample1 -s healthy12 \
+    -no-percent -d 3 --tsv-comma</div>
+
+<p style="color:var(--muted);font-size:.88em;"><strong>提示</strong>：以上示例中反斜杠 <code>\</code> 是 bash 的换行续行符，用于将长命令拆分为多行，实际输入时可写为一行或保留 <code>\</code> 换行。</p>
+
+<h4>3.5 从 stdin 读取</h4>
+<div class="code-block"><span class="p">$</span> cat sample.fastq | ./fastq_qc -i -</div>
+
+<!-- ==================== 4. OPTIONS ==================== -->
+<h2 id="options">4. 命令行选项</h2>
+
+<div class="table-wrap"><table>
+<tr><th>选项</th><th>参数</th><th>默认</th><th>说明</th></tr>
+<tr><td><code>-i</code></td><td><code>&lt;file&gt;</code></td><td>—</td><td><strong>必选</strong>。输入 FASTQ（双端时为 R1）。支持 <code>.gz</code>，<code>-</code> 为 stdin</td></tr>
+<tr><td><code>-I</code></td><td><code>&lt;file&gt;</code></td><td>—</td><td>R2 FASTQ 文件，指定后进入<strong>双端模式</strong></td></tr>
+<tr><td><code>-o</code></td><td><code>&lt;file&gt;</code></td><td>—</td><td>JSON 报告输出路径；不指定则不输出 JSON</td></tr>
+<tr><td><code>-p</code></td><td><code>&lt;prefix&gt;</code></td><td>—</td><td>TSV 文件输出前缀。单端：<code>&lt;prefix&gt;_summary.tsv</code> + cycles；双端：<code>_R1_summary</code>, <code>_R2_summary</code>, <code>_combined_summary</code> + cycles</td></tr>
+<tr><td><code>-s</code></td><td><code>&lt;id&gt;</code></td><td>文件名</td><td>TSV 中使用的样本 ID</td></tr>
+<tr><td><code>-no-percent</code></td><td>—</td><td>off</td><td>rate 值以小数 (0.0–1.0) 输出，而非百分数 (0–100)</td></tr>
+<tr><td><code>-d</code></td><td><code>&lt;n&gt;</code></td><td><code>2</code></td><td>rate 值保留的小数位数</td></tr>
+<tr><td><code>-is</code></td><td><code>&lt;n&gt;</code></td><td><code>512</code></td><td>最大 insert size（仅双端）</td></tr>
+<tr><td><code>--tsv-comma</code></td><td>—</td><td>off</td><td>TSV 中数值加千分位分隔符</td></tr>
+<tr><td><code>--json-comma</code></td><td>—</td><td>off</td><td>JSON 中数值加千分位（以字符串输出）</td></tr>
+<tr><td><code>-h</code></td><td>—</td><td>—</td><td>显示帮助</td></tr>
+</table></div>
+
+<!-- ==================== 5. FLOW ==================== -->
+<h2 id="flow">5. 处理流程</h2>
+
+<style>
+.flow-main { display: flex; flex-direction: column; align-items: center; gap: 0; margin: 1.5em 0; font-size: .88em; }
+.flow-n { padding: 10px 28px; border-radius: 8px; color: #fff; font-weight: 600; text-align: center; min-width: 200px; }
+.flow-s { background: #6e7781; }
+.flow-p { background: var(--accent); }
+.flow-g { background: #1a7f37; }
+.flow-r { background: #cf222e; }
+.flow-a { font-size: 1.5em; color: #6e7781; padding: 2px 0; }
+.flow-row2 { display: flex; justify-content: center; gap: 2rem; margin: .3em 0; }
+.flow-col { display: flex; flex-direction: column; align-items: center; gap: 0; }
+</style>
+
+<div class="flow-main">
+
+  <div class="flow-n flow-s">CLI 参数解析 (parse_args)</div>
+  <div class="flow-a">&#x2193;</div>
+  <div class="flow-n flow-p">FastqReader 打开输入文件 (gzip 自动检测)</div>
+  <div class="flow-a">&#x2193;</div>
+  <div class="flow-n flow-p">FastqReader::read() &mdash; 4MB 缓冲逐条读取 FASTQ</div>
+  <div class="flow-a">&#x2193;</div>
+
+  <div class="flow-row2">
+    <div class="flow-col">
+      <div class="flow-n flow-g">QcStats::process_read()</div>
+      <small style="margin-top:4px">per-cycle 质量 / 碱基 / GC</small>
+    </div>
+    <div class="flow-col">
+      <div class="flow-n flow-g">DupCounter::add_read() / add_pair()</div>
+      <small style="margin-top:4px">FNV-1a hash 判重</small>
+    </div>
+    <div class="flow-col">
+      <div class="flow-n flow-g">InsertSizeStats::process_pair()</div>
+      <small style="margin-top:4px">重叠分析 (仅 PE)</small>
+    </div>
+  </div>
+
+  <div class="flow-a">&#x2193;</div>
+  <div class="flow-n flow-p">QcStats::summarize() 汇总曲线与全局指标</div>
+  <div class="flow-a">&#x2193;</div>
+
+  <div class="flow-row2">
+    <div class="flow-col">
+      <div class="flow-n flow-r">stdout: 文本摘要</div>
+      <small style="margin-top:4px">QC Summary 表格</small>
+    </div>
+    <div class="flow-col">
+      <div class="flow-n flow-r">-o: JSON 报告</div>
+      <small style="margin-top:4px">完整曲线 + 直方图</small>
+    </div>
+    <div class="flow-col">
+      <div class="flow-n flow-r">-p: TSV 表格</div>
+      <small style="margin-top:4px">摘要 + 逐 cycle</small>
+    </div>
+  </div>
+
+  <div class="flow-a">&#x2193;</div>
+  <div class="flow-n flow-s">stderr: 运行时间统计</div>
+</div>
+
+<!-- ==================== 6. ARCHITECTURE ==================== -->
+<h2 id="arch">6. 类与函数说明</h2>
+
+<h3>6.1 FastqRead <span class="badge io">struct</span></h3>
+<p>存储一条 FASTQ 记录的四个字段：</p>
+<div class="table-wrap"><table>
+<tr><th>字段</th><th>类型</th><th>说明</th></tr>
+<tr><td><code>name</code></td><td><code>string</code></td><td>标识行 (以 @ 开头)</td></tr>
+<tr><td><code>seq</code></td><td><code>string</code></td><td>碱基序列</td></tr>
+<tr><td><code>strand</code></td><td><code>string</code></td><td>链标识行 (以 + 开头)</td></tr>
+<tr><td><code>quality</code></td><td><code>string</code></td><td>Phred+33 质量字符串</td></tr>
+</table></div>
+
+<h3>6.2 FastqReader <span class="badge alg">class</span></h3>
+<p>负责从文件（或 stdin）读取 FASTQ 记录。使用 4MB 内部缓冲区减少系统调用，类似 fastp 的环形缓冲区设计。</p>
+<div class="table-wrap"><table>
+<tr><th>方法</th><th>说明</th></tr>
+<tr><td><code>FastqReader(filename)</code></td><td>构造：检测 gzip (扩展名 + magic bytes)，打开文件</td></tr>
+<tr><td><code>read(FastqRead&amp;)</code></td><td>读取一条记录，返回 false 表示 EOF</td></tr>
+<tr><td><code>has_gz_ext()</code></td><td>检查 <code>.gz</code> / <code>.GZ</code> 扩展名</td></tr>
+<tr><td><code>has_gz_magic()</code></td><td>检查 gzip magic bytes (0x1F 0x8B)</td></tr>
+<tr><td><code>read_chunk()</code></td><td>从下层文件填充内部缓冲区</td></tr>
+<tr><td><code>next_line(string&amp;)</code></td><td>提取下一行（处理跨缓冲区边界）</td></tr>
+</table></div>
+
+<h3>6.3 QcStats <span class="badge alg">class</span></h3>
+<p>核心质量统计引擎，数据布局与 fastp 的 <code>Stats</code> 类一致：34 个 long 数组（Q30[8] + Q20[8] + Content[8] + Qual[8] + TotalBase + TotalQual）× bufLen。</p>
+<div class="table-wrap"><table>
+<tr><th>方法</th><th>说明</th></tr>
+<tr><td><code>process_read(r)</code></td><td>处理一条 read，更新 per-cycle 计数和直方图</td></tr>
+<tr><td><code>summarize()</code></td><td>汇总全局指标、生成质量/含量/GC 曲线</td></tr>
+<tr><td><code>merge(other)</code></td><td>合并另一个 QcStats（用于双端合并）</td></tr>
+<tr><td><code>print()</code></td><td>输出对齐的文本摘要（stdout）</td></tr>
+<tr><td><code>report_json(os)</code></td><td>输出 JSON 片段</td></tr>
+<tr><td><code>write_cycles_tsv(os)</code></td><td>输出 per-cycle TSV 表</td></tr>
+<tr><td><code>gc_content()</code></td><td>GC 含量（受 <code>-no-percent</code> 控制）</td></tr>
+<tr><td><code>q20/30/40_rate()</code></td><td>Q20/Q30/Q40 比例</td></tr>
+<tr><td><code>cycle20_rate()</code></td><td>第 20 个测序循环 (0-based 索引 19) 处质量 ≥ Q20 的碱基比例，详见<a href="#cycle20-def">下方定义说明</a></td></tr>
+</table></div>
+
+<h4>6.3.1 碱基编码 (base2idx)</h4>
+<p>fastp 利用 ASCII % 8 的性质快速映射碱基：</p>
+<div class="table-wrap"><table>
+<tr><th>碱基</th><th>ASCII</th><th>ASCII % 8</th></tr>
+<tr><td>A</td><td>65</td><td>1</td></tr>
+<tr><td>T</td><td>84</td><td>4</td></tr>
+<tr><td>C</td><td>67</td><td>3</td></tr>
+<tr><td>G</td><td>71</td><td>7</td></tr>
+<tr><td>N</td><td>78</td><td>6</td></tr>
+</table></div>
+<pre><code>static inline int base2idx(char base) { return base &amp; 0x07; }</code></pre>
+
+<h3>6.4 DupCounter <span class="badge alg">class</span></h3>
+<p>基于 FNV-1a 64-bit hash + unordered_set 的精确去重统计。双端时将 R1 和 R2 的 hash 通过 boost::hash_combine 合并。</p>
+<div class="table-wrap"><table>
+<tr><th>方法</th><th>说明</th></tr>
+<tr><td><code>add_read(r)</code></td><td>单端：hash 序列并判重</td></tr>
+<tr><td><code>add_pair(r1, r2)</code></td><td>双端：合并 R1+R2 hash 判重</td></tr>
+<tr><td><code>dup_rate()</code></td><td>返回原始比例 (0.0–1.0)</td></tr>
+</table></div>
+
+<h3>6.5 InsertSizeStats <span class="badge alg">class</span></h3>
+<p>仅双端生效。将 R2 反向互补后，与 R1 后缀做精确重叠匹配，计算 insert_size = len(R1) + len(R2) - overlap。</p>
+<div class="table-wrap"><table>
+<tr><th>方法</th><th>说明</th></tr>
+<tr><td><code>process_pair(r1, r2)</code></td><td>计算 insert size 并更新直方图</td></tr>
+<tr><td><code>peak()</code></td><td>直方图众数（peak insert size）</td></tr>
+<tr><td><code>unknown()</code></td><td>无法确定 insert size 的 pair 数</td></tr>
+</table></div>
+
+<!-- ==================== 7. ALGORITHMS ==================== -->
+<h2 id="algorithms">7. 算法详解</h2>
+
+<h3>7.1 质量统计 (QcStats)</h3>
+
+<h4>Per-Cycle 34 数组布局</h4>
+<p>单次分配 34 × bufLen 个 long，由 QcStats 内部管理指针：</p>
+
+<pre><code>m_cycle_buf = new long[34 * bufLen];
+
+// 数组布局:
+m_cycle_q30[0..7]      = m_cycle_buf + [ 0..7]  * bufLen  // 每种碱基的 Q30 次数
+m_cycle_q20[0..7]      = m_cycle_buf + [ 8..15] * bufLen  // 每种碱基的 Q20 次数
+m_cycle_content[0..7]  = m_cycle_buf + [16..23] * bufLen  // 每种碱基出现次数
+m_cycle_qual[0..7]     = m_cycle_buf + [24..31] * bufLen  // 每种碱基质量值总和
+m_cycle_total_base     = m_cycle_buf + [32]     * bufLen  // 每 cycle 总碱基数
+m_cycle_total_qual     = m_cycle_buf + [33]     * bufLen  // 每 cycle 总质量值</code></pre>
+
+<h4>动态扩容</h4>
+<p>当 read 长度超过当前 bufLen 时，<code>extend_buffer(new_len)</code> 分配新数组，逐行 memcpy 旧数据，确保不丢已有统计。</p>
+
+<h4>汇总 (summarize)</h4>
+<p>遍历所有 cycle，计算：</p>
+<ul>
+  <li><strong>全局指标</strong>：total_bases, Q20/Q30/Q40 totals, GC bases</li>
+  <li><strong>质量曲线</strong>：mean_qual, A/T/C/G per-base mean qual</li>
+  <li><strong>含量曲线</strong>：A/T/C/G/N per-cycle fraction, GC per-cycle fraction</li>
+</ul>
+
+<h3>7.2 重复检测 (DupCounter)</h3>
+<div class="flow-main">
+  <div class="flow-n flow-p">读取序列</div>
+  <div class="flow-a">&#x2193;</div>
+  <div class="flow-n flow-p">FNV-1a 64-bit hash</div>
+  <div class="flow-a">&#x2193;</div>
+  <div class="flow-row2">
+    <div class="flow-n flow-g">hash 已在 unordered_set 中</div>
+    <div class="flow-n flow-r">hash 不在 set 中</div>
+  </div>
+  <div style="display:flex; gap:6rem; margin-top:4px;">
+    <span style="color:#cf222e">→ m_dup++</span>
+    <span style="color:#1a7f37">→ 插入 set</span>
+  </div>
+  <div class="flow-a">&#x2193;</div>
+  <div class="flow-n flow-s">dup_rate = m_dup / m_total</div>
+</div>
+
+<div class="info-box">
+  <strong>双端处理</strong>：R1 和 R2 的 hash 通过 boost::hash_combine 合并为一个 64-bit 值再判重。
+</div>
+
+<h3>7.3 插入片段大小 (InsertSizeStats)</h3>
+<div class="flow-main">
+  <div class="flow-n flow-p">R2 反向互补</div>
+  <div class="flow-a">&#x2193;</div>
+  <div class="flow-n flow-p">从最大可能重叠开始 → 递减至 30bp</div>
+  <div class="flow-a">&#x2193;</div>
+  <div class="flow-row2">
+    <div class="flow-n flow-g">memcmp 精确匹配</div>
+    <div class="flow-n flow-r">无匹配 ≥ 30bp</div>
+  </div>
+  <div style="display:flex; gap:3rem; margin-top:4px;">
+    <span style="color:#1a7f37">→ isize = len1 + len2 − overlap</span>
+    <span style="color:#cf222e">→ m_unknown++</span>
+  </div>
+  <div class="flow-a">&#x2193;</div>
+  <div class="flow-n flow-s">更新直方图; peak = 众数</div>
+</div>
+
+<h3 id="cycle20-def">7.4 cycle20_rate 定义说明</h3>
+
+<div class="warn-box">
+  <strong>"cycle20" 一词在不同上下文中含义不同，本工具的 <code>cycle20_rate</code> 特指：</strong>
+  <br><br>
+  <strong>第 20 个测序循环（即 reads 中第 20 个碱基位置，0-based 索引 19）处，质量值 ≥ Q20 (Phred 20, ASCII '5') 的碱基占比。</strong>
+  <br><br>
+  计算公式：<code>cycle20_rate = m_cycle_q20[0..7][19] 之和 / m_cycle_total_base[19]</code>，结果受 <code>-no-percent</code> / <code>-d</code> 选项控制。
+  <br><br>
+  <em>常见歧义对照：</em>
+  <table>
+  <tr><th>上下文</th><th>cycle20 含义</th></tr>
+  <tr><td><strong>本工具 fastq_qc</strong></td><td>位置 20 处 Q20+ 碱基比例 (cycle20_rate)</td></tr>
+  <tr><td>某些 QC 报告</td><td>Q20 对应的 Phred 质量阈值 (ASCII '5' / Phred 20)</td></tr>
+  <tr><td>某些 QC 报告 / 本工具早期版本</td><td>平均质量首次降至 Q20 以下的 cycle 编号 (cycle Q20 drop position)</td></tr>
+  </table></div>
+  <p>如需全局 Q20 比例，请使用 <code>q20_rate</code> 指标；如需 Q20 阈值本身，参考常量定义 (Phred+33 编码下 ASCII='5')。</p>
+
+<!-- ==================== 8. INPUT ==================== -->
+<h2 id="input">8. 输入格式</h2>
+
+<h3>8.1 FASTQ 格式</h3>
+<p>标准 FASTQ 每 4 行为一条记录。支持单行或多行序列/质量（但不推荐多行）。</p>
+<pre><code>@SEQ_ID
+GATTTGGGGTTCAAAGCAGTATCGATCAAATAGTAAATCCATTTGTTCAACTCACAGTTT
++
+!''*((((***+))%%%++)(%%%%).1***-+*''))**55CCF&gt;&gt;&gt;&gt;&gt;&gt;CCCCCCC65</code></pre>
+
+<h3>8.2 Gzip 压缩</h3>
+<p>自动识别 <code>.gz</code> 扩展名和 gzip magic bytes (0x1F 0x8B)。</p>
+<pre><code># 以下都会被正确识别为 gzip
+sample.fq.gz
+sample.fastq.gz
+sample.FQ.GZ
+# magic bytes 检测：即使没有 .gz 扩展名也能识别</code></pre>
+
+<!-- ==================== 9. OUTPUT ==================== -->
+<h2 id="output">9. 输出文件格式</h2>
+
+<h3>9.1 文本摘要 <span class="badge io">stdout</span></h3>
+<p>始终输出到 stdout。包含 QC Summary、Duplication、Insert Size 三个区块。字段使用 %-20s %12s 左右对齐，长数值默认加千分位。</p>
+
+<h3>9.2 JSON 报告 <span class="badge io">-o file</span></h3>
+<p>结构：</p>
+<pre><code>{
+  "read1": {
+    "total_reads": 61329,
+    "total_bases": 15999479,
+    "mean_length": 260,
+    "total_cycles": 301,
+    "q20_bases": 15593674,
+    "q20_rate": 97.46,
+    "q30_bases": 14726729,
+    "q30_rate": 92.05,
+    "q40_bases": 0,
+    "q40_rate": 0.00,
+    "gc_bases": 8486112,
+    "gc_content": 53.04,
+    "cycle20_rate": 99.90,
+    "quality_curves": { "A":[...], "T":[...], "C":[...], "G":[...], "mean":[...] },
+    "content_curves": { "A":[...], "T":[...], "C":[...], "G":[...], "N":[...], "GC":[...] },
+    "quality_histogram": { "33": 12345, ... }
+  },
+  "read2": { ... },           // 仅双端
+  "total_reads": 122658,      // 仅双端
+  "total_bases": 31995914,    // 仅双端
+  "duplication": { "rate": 5.86 },
+  "insert_size": {            // 仅双端
+    "peak": 259,
+    "unknown": 34931,
+    "histogram": [0, 0, ...]
+  }
+}</code></pre>
+
+<h3>9.3 TSV 表格 <span class="badge io">-p prefix</span></h3>
+<div class="table-wrap"><table>
+<tr><th>模式</th><th>文件</th><th>列</th></tr>
+<tr><td>单端</td><td><code>&lt;prefix&gt;_summary.tsv</code></td><td>sample, total_reads, total_bases, mean_length, gc_content, q20_rate, q30_rate, q40_bases, q40_rate, cycle20_rate, dup_rate</td></tr>
+<tr><td>单端</td><td><code>&lt;prefix&gt;_R1_cycles.tsv</code></td><td>cycle, mean_qual, A_qual, T_qual, C_qual, G_qual, A_content, T_content, C_content, G_content, N_content, GC_content</td></tr>
+<tr><td>双端</td><td><code>&lt;prefix&gt;_R1_summary.tsv</code></td><td>R1 独立指标 + dup_rate + insert_size_peak + insert_size_unknown</td></tr>
+<tr><td>双端</td><td><code>&lt;prefix&gt;_R2_summary.tsv</code></td><td>R2 独立指标 + dup_rate + insert_size_peak + insert_size_unknown</td></tr>
+<tr><td>双端</td><td><code>&lt;prefix&gt;_combined_summary.tsv</code></td><td>R1+R2 合并指标 + dup_rate + insert_size_peak + insert_size_unknown</td></tr>
+<tr><td>双端</td><td><code>&lt;prefix&gt;_R1_cycles.tsv</code><br><code>&lt;prefix&gt;_R2_cycles.tsv</code></td><td>per-cycle 12 列（同上）</td></tr>
+</table></div>
+
+<!-- ==================== 10. SAMPLES ==================== -->
+<h2 id="samples">10. 输出示例</h2>
+
+<h4>10.1 文本摘要 (stdout)</h4>
+<div class="code-block">=== QC Summary ===
+  Total reads:               61,329
+  Total bases:           15,999,479
+  Mean length:                  260 bp
+  GC content:               53.04 %
+  Q20 bases:             15,593,674  (97.46 %)
+  Q30 bases:             14,726,729  (92.05 %)
+  Q40 bases:                      0  (0.00 %)
+  Total cycles:                 301
+  Cycle 20 Q20 rate:        99.90 %
+
+=== Duplication ===
+  Duplication rate:         13.20 %
+
+=== Insert Size ===
+  Insert size peak:             259
+  Unknown pairs:             34,931</div>
+
+<h4>10.2 JSON (单端，含 pretty-print 曲线)</h4>
+<div class="code-block">{
+  "read1": {
+    "total_reads": 61329,
+    "total_bases": 15999479,
+    "mean_length": 260,
+    "total_cycles": 301,
+    "q20_bases": 15593674,
+    "q20_rate": 97.46,
+    "q30_bases": 14726729,
+    "q30_rate": 92.05,
+    "q40_bases": 0,
+    "q40_rate": 0.00,
+    "gc_bases": 8486112,
+    "gc_content": 53.04,
+    "cycle20_rate": 99.90,
+    "quality_curves": {
+      "A":[33.3928,33.6323,33.6983,32.0314,33.7819,36.4466,37.5358,35.5550,37.2928,34.6134,
+            33.3777,33.4867,36.2417,36.3467,36.7373,35.3426,36.9811,37.3348,37.1728,36.8401,
+            ...],
+      "mean":[33.5591,33.6419,33.7547,33.6622,33.7906,37.6162,37.6250,37.7278,37.3341,37.5636,
+              37.5391,37.3128,37.3094,37.5275,36.6993,37.1621,37.2571,37.1400,37.2991,37.5360,
+              ...]
+    },
+    "content_curves": {
+      "A":[0.1969,0.5154,0.2547,0.0280,0.5813,0.0034,0.0619,0.0068,0.6550,0.0032,
+           0.0031,0.0037,0.0039,0.0118,0.9809,0.0041,0.0881,0.1033,0.5053,0.0129,
+           ...],
+      "GC":[0.5011,0.2913,0.5078,0.7192,...]
+    },
+    "quality_histogram": {
+      "33": 221, "34": 522, "35": 1667, ...,
+      "70": 1830918, "71": 10499889
+    }
+  },
+  "duplication": { "rate": 13.20 }
+}</div>
+
+<h4>10.3 TSV Summary (单端)</h4>
+<div class="code-block">sample        total_reads  total_bases  mean_length  gc_content  q20_rate  q30_rate  q40_bases  q40_rate  cycle20_rate  dup_rate
+healthy12     61,329       15,999,479   260          53.04       97.46     92.05     0          0.00      99.90         13.20</div>
+
+<h4>10.4 TSV Summary (双端 R1 / R2 / Combined)</h4>
+<div class="code-block"># healthy12_R1_summary.tsv
+sample     total_reads  total_bases  gc_content  q20_rate  q30_rate  dup_rate  insert_size_peak  insert_size_unknown
+healthy12  61,329       15,999,479   53.04       97.46     92.05     5.86      259               34,931
+
+# healthy12_R2_summary.tsv
+healthy12  61,329       15,996,435   52.99       91.81     80.91     5.86      259               34,931
+
+# healthy12_combined_summary.tsv
+healthy12  122,658      31,995,914   53.01       94.64     86.48     5.86      259               34,931</div>
+
+<h4>10.5 TSV Cycles (前 3 行)</h4>
+<div class="code-block">cycle  mean_qual  A_qual   T_qual   C_qual   G_qual   A_content  T_content  C_content  G_content  N_content  GC_content
+1      33.5591    33.3928  33.5918  33.5994  33.6480  0.1969     0.3020     0.4465     0.0547     0          0.5011
+2      33.6419    33.6323  33.6645  33.4313  33.6845  0.5154     0.1932     0.0467     0.2447     0          0.2913
+3      33.7547    33.6983  33.7553  33.7939  33.6890  0.2547     0.2375     0.4531     0.0546     0          0.5078</div>
+
+<h4>10.6 stderr 运行日志 (双端)</h4>
+<div class="code-block">Processing paired-end FASTQ data...
+  Processed 500,000 reads...
+Total reads processed: 61,329
+JSON report written to: report.json
+TSV summary R1 written to: sample1_R1_summary.tsv
+TSV summary R2 written to: sample1_R2_summary.tsv
+TSV combined summary written to: sample1_combined_summary.tsv
+TSV cycles R1 written to: sample1_R1_cycles.tsv
+TSV cycles R2 written to: sample1_R2_cycles.tsv
+Elapsed time: 4 sec (0 min 4 sec)</div>
+
+<h4>10.7 stderr 运行日志 (单端)</h4>
+<div class="code-block">Processing single-end FASTQ data...
+Total reads processed: 61,329
+JSON report written to: test_results/healthy12_R1.json
+TSV summary written to: test_results/healthy12_R1_summary.tsv
+TSV cycles R1 written to: test_results/healthy12_R1_R1_cycles.tsv
+Elapsed time: 1 sec (0 min 1 sec)</div>
+
+<!-- ==================== 11. NOTES ==================== -->
+<h2 id="notes">11. 注意事项</h2>
+
+<div class="warn-box">
+  <strong>cycle20 定义</strong>："cycle20" 一词在不同报告中含义不同，本脚本中的 <strong>cycle20_rate</strong> 特指<strong>第 20 个测序循环（即 reads 中第 20 个碱基位置，0-based 索引 19）处，质量值 ≥ Q20 的碱基占比</strong>。
+  <br><br>
+  <em>注意区分以下常见歧义：</em>
+  <ul style="margin:.3em 0 0 1.5em;">
+    <li>本脚本：<code>cycle20_rate</code> = 位置 20 处的 Q20+ 比率</li>
+    <li>某些报告：<code>cycle20</code> = Q20 对应的 Phred 阈值（即 ASCII '5' / Phred 20）</li>
+    <li>某些报告：<code>cycle20</code> = 平均质量首次降至 Q20 以下的 cycle 编号（本脚本早期版本曾如此定义，已改为当前定义）</li>
+  </ul>
+  如果您期望的是其他语义，请注意区分，或参考本工具的其他指标（如 <code>q20_rate</code> 为全局 Q20+ 比例）。
+</div>
+
+<div class="warn-box">
+  <strong>内存使用</strong>：DupCounter 的 unordered_set 在超大数据集（数亿条 read）时可能消耗 GB 级内存。如在内存受限环境中使用，请注意。
+</div>
+
+<div class="info-box">
+  <strong>插入片段大小</strong>：仅当 <code>-I</code> 指定 R2 时计算。估算依赖重叠分析（≥30bp 精确匹配），不重叠的 pair 归入 unknown。
+</div>
+
+<div class="info-box">
+  <strong>Q40</strong>：Q40 基数为 0 是正常的——多数 Illumina 数据的质量上限为 Q38–Q42，Q40 阈值 (ASCII 'I' = 73) 通常只有极少数碱基达到。
+</div>
+
+<div class="info-box">
+  <strong>单端重复率</strong>：单端模式下的重复率可能高于双端——因为仅用一条 read 的 hash，碰撞概率更高。这与 fastp 的行为一致。
+</div>
+
+<div class="warn-box">
+  <strong>TSV 千分位</strong>：开启 <code>--tsv-comma</code> 后数值列会包含逗号，部分解析工具可能需要预处理。默认不开启。
+</div>
+
+<div class="info-box">
+  <strong>JSON 千分位</strong>：开启 <code>--json-comma</code> 后数值以字符串 <code>"61,329"</code> 输出，不再是 JSON number 类型。下游解析需注意转换。
+</div>
+
+<div class="info-box">
+  <strong>gzip 检测</strong>：通过文件扩展名 <code>.gz</code> 和 magic bytes <code>0x1F 0x8B</code> 双重检测。即使文件没有 <code>.gz</code> 扩展名，只要内容以 gzip 魔数开头即可正确解压。
+</div>
+
+<footer>
+  <p>fastq_qc &mdash; core algorithms adapted from <a href="https://github.com/OpenGene/fastp/archive/refs/tags/v1.3.3.zip">fastp v1.3.3</a> by Shifu Chen et al.</p>
+  <p>Generated 2026-05-22</p>
+</footer>
+
+</body>
+</html>
