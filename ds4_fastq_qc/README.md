@@ -8,6 +8,22 @@
 
 ---
 
+### 目录
+
+- [简介](#简介)
+- [特性](#特性)
+- [编译](#编译)
+- [快速开始](#快速开始)
+- [选项](#选项)
+- [输出参考](#输出参考)
+- [架构](#架构)
+- [算法](#算法)
+- [注意事项](#注意事项)
+- [与 fastp v1.3.3 的差异](#与-fastp-v133-的差异)
+- [English](#english)
+
+---
+
 ## 中文
 
 ### 简介
@@ -261,6 +277,18 @@ cycle20_rate = Σ m_cycle_q20[b][19] / m_cycle_total_base[19]
 ---
 
 ## English
+
+- [Overview](#overview)
+- [Features](#features)
+- [Build](#build)
+- [Quick Start](#quick-start)
+- [Options](#options)
+- [Output Reference](#output-reference)
+- [Architecture](#architecture)
+- [Algorithms](#algorithms)
+- [Notes](#notes)
+- [Comparison with fastp v1.3.3](#comparison-with-fastp-v133)
+- [License](#license)
 
 ### Overview
 
