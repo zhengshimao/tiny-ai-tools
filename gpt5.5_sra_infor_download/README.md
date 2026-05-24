@@ -2,6 +2,35 @@
 
 中文 | [English](#english)
 
+## 目录 / Table of Contents
+
+- [中文](#中文)
+  - [功能概览](#功能概览)
+  - [环境要求](#环境要求)
+  - [快速开始](#快速开始)
+  - [参数说明](#参数说明)
+  - [使用示例](#使用示例)
+  - [输出文件格式](#输出文件格式)
+  - [单条记录 JSON 视图](#单条记录-json-视图)
+  - [脚本流程](#脚本流程)
+  - [函数概览](#函数概览)
+  - [Git 提交说明](#git-提交说明)
+  - [注意事项](#注意事项)
+  - [常见问题](#常见问题)
+- [English](#english)
+  - [Overview](#overview)
+  - [Requirements](#requirements)
+  - [Quick Start](#quick-start)
+  - [Arguments](#arguments)
+  - [Examples](#examples)
+  - [Output File Formats](#output-file-formats)
+  - [Pretty JSON View](#pretty-json-view)
+  - [Workflow](#workflow)
+  - [Function Summary](#function-summary)
+  - [Git Commit Notes](#git-commit-notes)
+  - [Notes](#notes)
+  - [Troubleshooting](#troubleshooting)
+
 `run_get_bioinfor_from_NCBI_SRA.py` is a small Python script for retrieving file metadata from NCBI SRA and generating download helper scripts.
 
 `run_get_bioinfor_from_NCBI_SRA.py` 是一个用于从 NCBI SRA 获取测序文件信息的小型 Python 脚本，并会自动生成下载脚本与 MD5 校验文件。
