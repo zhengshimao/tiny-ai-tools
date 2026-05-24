@@ -11,6 +11,7 @@
 | 工具                            | 描述                                                         | 主要功能                                                     |
 | ------------------------------- | ------------------------------------------------------------ | ------------------------------------------------------------ |
 | [ds4_fastq_qc](./ds4_fastq_qc/) | 基于 fastp v1.3.3 的轻量 FASTQ 质控工具，单文件 C++，支持单双端、gzip 自动识别、多格式输出 | per-cycle 质量/含量/GC 统计 · Q20/Q30/Q40 检测 · 重复率 · 插入片段峰值 · 文本/JSON/TSV 输出。 |
+| [gpt5.5_sra_infor_download](./gpt5.5_sra_infor_download/) | 从 NCBI SRA 获取 run / BioProject / Study 文件信息，并生成多工具下载脚本的 Python 工具 | SRA XML 解析 · run 列表生成 · TSV 信息表 · wget/axel/aria2c/aws s3 cp 下载脚本 · MD5 校验清单。 |
 
 *更多工具持续添加中…*
 
