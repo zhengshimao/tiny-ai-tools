@@ -1,0 +1,8 @@
+run	cluster	filename	size	date	md5	version	semantic_name	supertype	sratoolkit	url	free_egress	access_type	org
+SRR9054070	public	chow2_S1_L005_I1_001.fastq.gz	2225589969	2020-01-17 10:35:41	e4b011fa917f2b535eb4f05a625b98a5	1	fastq	Original	0	s3://sra-pub-src-16/SRR9054070/chow2_S1_L005_I1_001.fastq.gz	-	Use Cloud Data Delivery	AWS
+SRR9054070	public	chow2_S1_L005_R1_001.fastq.gz	7111098810	2020-01-17 10:38:57	067f44406e73f8b9b463ff5c9d3ea91e	1	fastq	Original	0	s3://sra-pub-src-16/SRR9054070/chow2_S1_L005_R1_001.fastq.gz	-	Use Cloud Data Delivery	AWS
+SRR9054070	public	chow2_S1_L005_R2_001.fastq.gz	29142355484	2020-01-17 09:31:43	dc9cb9ba1123f5037b0ccaa6e502cb38	1	fastq	Original	0	s3://sra-pub-src-16/SRR9054070/chow2_S1_L005_R2_001.fastq.gz	-	Use Cloud Data Delivery	AWS
+SRR9054070	public	SRR9054070	30859011740	2019-05-16 15:04:50	fa703ca4c66e0d5bffdb9f3ab5b6a240	1	SRA Normalized	Primary ETL	1	https://sra-pub-run-odp.s3.amazonaws.com/sra/SRR9054070/SRR9054070	worldwide	anonymous	AWS
+SRR9054070	public	SRR9054070.sralite	18363818592	2020-06-23 13:08:29	7c51d06db45b1ea8caf8eab01864d7c7	1	SRA Lite	Primary ETL	1	https://sra-downloadb.be-md.ncbi.nlm.nih.gov/sos5/sra-pub-zq-14/SRR009/054/SRR9054070.sralite.1	worldwide	anonymous	NCBI
+SRR9054070	public	SRR9054070.sralite	18363818592	2020-06-23 13:08:29	7c51d06db45b1ea8caf8eab01864d7c7	1	SRA Lite	Primary ETL	1	s3://sra-pub-zq-5/SRR9054070/SRR9054070.sralite.1	s3.us-east-1	aws identity	AWS
+SRR9054070	public	SRR9054070.sralite	18363818592	2020-06-23 13:08:29	7c51d06db45b1ea8caf8eab01864d7c7	1	SRA Lite	Primary ETL	1	gs://sra-pub-zq-105/SRR9054070/SRR9054070.zq.1	gs.us-east1	gcp identity	GCP

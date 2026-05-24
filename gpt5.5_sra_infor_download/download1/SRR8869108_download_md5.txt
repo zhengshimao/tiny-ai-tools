@@ -1,0 +1,3 @@
+e4bc757b895429dff2bab8ad5870394e  nash1_possorted_genome_bam.bam
+266cf879c9cbb1fb697787f4e0e5897a  SRR8869108
+b14f8e3185fceb8d10251a7c424f605f  SRR8869108.sralite

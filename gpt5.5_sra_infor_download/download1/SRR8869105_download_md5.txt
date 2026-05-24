@@ -1,0 +1,3 @@
+0e5299a457dcfa0131252effd53c5c9c  chow1_possorted_genome_bam.bam
+980ce7b794509bf400699feaeb53b28c  SRR8869105
+e3d3de3d976922570483905f706bfe39  SRR8869105.sralite

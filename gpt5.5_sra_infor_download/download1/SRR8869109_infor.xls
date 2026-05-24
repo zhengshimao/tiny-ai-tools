@@ -1,0 +1,7 @@
+run	cluster	filename	size	date	md5	version	semantic_name	supertype	sratoolkit	url	free_egress	access_type	org
+SRR8869109	public	nash2_possorted_genome_bam.bam	33507209970	2019-05-13 11:32:54	e226c393f3fd084ff630e96226770cf6	1	10X Genomics bam file	Original	0	s3://sra-pub-src-14/SRR8869109/nash2_possorted_genome_bam.bam.1	-	Use Cloud Data Delivery	AWS
+SRR8869109	public	nash2_possorted_genome_bam.bam	33507209970	2019-05-13 11:32:54	e226c393f3fd084ff630e96226770cf6	1	10X Genomics bam file	Original	0	https://sra-pub-src-1.s3.amazonaws.com/SRR8869109/nash2_possorted_genome_bam.bam.1	worldwide	anonymous	AWS
+SRR8869109	public	SRR8869109	11378764323	2019-05-13 11:49:36	b8a1949369440b063e633653d5ab67f0	1	SRA Normalized	Primary ETL	1	https://sra-pub-run-odp.s3.amazonaws.com/sra/SRR8869109/SRR8869109	worldwide	anonymous	AWS
+SRR8869109	public	SRR8869109.sralite	6087796382	2020-08-13 18:26:12	a2183eaa6462a66dd36e86390f37b18c	1	SRA Lite	Primary ETL	1	https://sra-downloadb.be-md.ncbi.nlm.nih.gov/sos5/sra-pub-zq-14/SRR008/869/SRR8869109.sralite.1	worldwide	anonymous	NCBI
+SRR8869109	public	SRR8869109.sralite	6087796382	2020-08-13 18:26:12	a2183eaa6462a66dd36e86390f37b18c	1	SRA Lite	Primary ETL	1	s3://sra-pub-zq-6/SRR8869109/SRR8869109.sralite.1	s3.us-east-1	aws identity	AWS
+SRR8869109	public	SRR8869109.sralite	6087796382	2020-08-13 18:26:12	a2183eaa6462a66dd36e86390f37b18c	1	SRA Lite	Primary ETL	1	gs://sra-pub-zq-105/SRR8869109/SRR8869109.zq.1	gs.us-east1	gcp identity	GCP

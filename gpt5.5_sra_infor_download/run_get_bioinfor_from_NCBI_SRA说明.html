@@ -1,0 +1,1031 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>run_get_bioinfor_from_NCBI_SRA.py 详细说明</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #ffffff;
+      --text: #24292f;
+      --muted: #57606a;
+      --border: #d0d7de;
+      --soft: #f6f8fa;
+      --accent: #0969da;
+      --accent-soft: #ddf4ff;
+      --green: #1a7f37;
+      --orange: #bc4c00;
+      --red: #cf222e;
+      --purple: #8250df;
+      --shadow: 0 1px 2px rgba(31, 35, 40, .08);
+      --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+      --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      font-size: 16px;
+      line-height: 1.65;
+    }
+
+    a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 280px minmax(0, 1fr);
+      min-height: 100vh;
+    }
+
+    .sidebar {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow: auto;
+      padding: 24px 20px;
+      border-right: 1px solid var(--border);
+      background: #fff;
+    }
+
+    .sidebar h2 {
+      margin: 0 0 16px;
+      font-size: 16px;
+      line-height: 1.35;
+    }
+
+    .toc {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .toc li {
+      margin: 3px 0;
+    }
+
+    .toc a {
+      display: block;
+      padding: 5px 8px;
+      border-radius: 6px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .toc a:hover {
+      background: var(--soft);
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    main {
+      max-width: 1120px;
+      width: 100%;
+      padding: 40px 48px 80px;
+    }
+
+    .hero {
+      padding-bottom: 26px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 28px;
+    }
+
+    .eyebrow {
+      margin: 0 0 8px;
+      color: var(--muted);
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 34px;
+      line-height: 1.2;
+      letter-spacing: 0;
+    }
+
+    h2 {
+      padding-bottom: 8px;
+      margin: 38px 0 16px;
+      border-bottom: 1px solid var(--border);
+      font-size: 25px;
+      line-height: 1.3;
+      letter-spacing: 0;
+    }
+
+    h3 {
+      margin: 24px 0 10px;
+      font-size: 18px;
+      line-height: 1.35;
+      letter-spacing: 0;
+    }
+
+    p {
+      margin: 0 0 14px;
+    }
+
+    ul,
+    ol {
+      padding-left: 24px;
+    }
+
+    li {
+      margin: 4px 0;
+    }
+
+    code {
+      padding: .2em .4em;
+      border-radius: 6px;
+      background: rgba(175, 184, 193, .2);
+      font-family: var(--mono);
+      font-size: 85%;
+    }
+
+    .mac-window {
+      overflow: hidden;
+      margin: 16px 0;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: #fff;
+      box-shadow: var(--shadow);
+    }
+
+    .mac-titlebar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 34px;
+      padding: 0 12px;
+      border-bottom: 1px solid var(--border);
+      background: var(--soft);
+      color: var(--muted);
+      font-size: 13px;
+      font-family: var(--mono);
+    }
+
+    .dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      display: inline-block;
+      flex: 0 0 auto;
+    }
+
+    .dot.red {
+      background: #ff5f56;
+    }
+
+    .dot.yellow {
+      background: #ffbd2e;
+    }
+
+    .dot.green {
+      background: #27c93f;
+    }
+
+    pre {
+      margin: 0;
+      padding: 16px;
+      overflow: auto;
+      background: #fff;
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 13px;
+      line-height: 1.55;
+      tab-size: 2;
+    }
+
+    pre code {
+      padding: 0;
+      border-radius: 0;
+      background: transparent;
+      font-size: inherit;
+    }
+
+    .note,
+    .warning,
+    .success {
+      margin: 16px 0;
+      padding: 14px 16px;
+      border: 1px solid var(--border);
+      border-left-width: 4px;
+      border-radius: 8px;
+      background: #fff;
+    }
+
+    .note {
+      border-left-color: var(--accent);
+    }
+
+    .warning {
+      border-left-color: var(--orange);
+    }
+
+    .success {
+      border-left-color: var(--green);
+    }
+
+    .badge-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 18px 0 0;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      min-height: 26px;
+      padding: 2px 9px;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      background: var(--soft);
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+      margin: 16px 0;
+    }
+
+    .card {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: #fff;
+      box-shadow: var(--shadow);
+      padding: 16px;
+    }
+
+    .card h3 {
+      margin-top: 0;
+    }
+
+    .table-wrap {
+      width: 100%;
+      margin: 16px 0;
+      overflow-x: auto;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: #fff;
+      box-shadow: var(--shadow);
+    }
+
+    table {
+      width: 100%;
+      min-width: 880px;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+
+    th,
+    td {
+      padding: 9px 12px;
+      border-bottom: 1px solid var(--border);
+      text-align: left;
+      vertical-align: top;
+      white-space: nowrap;
+    }
+
+    th {
+      background: var(--soft);
+      font-weight: 600;
+    }
+
+    td.wrap {
+      white-space: normal;
+      min-width: 260px;
+    }
+
+    tr:last-child td {
+      border-bottom: 0;
+    }
+
+    .flow {
+      margin: 18px 0;
+      padding: 18px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: #fff;
+      box-shadow: var(--shadow);
+    }
+
+    .flow-row {
+      display: flex;
+      align-items: stretch;
+      gap: 12px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+    }
+
+    .step {
+      min-width: 168px;
+      padding: 14px 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--soft);
+      text-align: center;
+    }
+
+    .step strong {
+      display: block;
+      margin-bottom: 5px;
+      color: var(--text);
+      font-size: 14px;
+    }
+
+    .step span {
+      display: block;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .arrow {
+      display: flex;
+      align-items: center;
+      color: var(--muted);
+      font-size: 24px;
+      padding: 0 2px;
+      flex: 0 0 auto;
+    }
+
+    .arch {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 14px;
+    }
+
+    .arch-box {
+      min-height: 118px;
+      padding: 14px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--soft);
+    }
+
+    .arch-box h3 {
+      margin: 0 0 8px;
+      font-size: 16px;
+    }
+
+    .arch-box ul {
+      margin: 0;
+      padding-left: 18px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .kbd {
+      display: inline-block;
+      padding: 2px 6px;
+      border: 1px solid var(--border);
+      border-bottom-color: #afb8c1;
+      border-radius: 6px;
+      background: var(--soft);
+      font-family: var(--mono);
+      font-size: 12px;
+      box-shadow: inset 0 -1px 0 #afb8c1;
+    }
+
+    .footer {
+      margin-top: 48px;
+      padding-top: 20px;
+      border-top: 1px solid var(--border);
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    @media (max-width: 900px) {
+      .layout {
+        display: block;
+      }
+
+      .sidebar {
+        position: static;
+        height: auto;
+        border-right: 0;
+        border-bottom: 1px solid var(--border);
+      }
+
+      main {
+        padding: 28px 20px 64px;
+      }
+
+      .grid,
+      .arch {
+        grid-template-columns: 1fr;
+      }
+
+      h1 {
+        font-size: 28px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <h2>目录</h2>
+      <ol class="toc">
+        <li><a href="#overview">1. 脚本概览</a></li>
+        <li><a href="#quickstart">2. 快速开始</a></li>
+        <li><a href="#usage">3. 参数与使用示例</a></li>
+        <li><a href="#outputs">4. 输入输出文件说明</a></li>
+        <li><a href="#samples">5. 文件内容展示</a></li>
+        <li><a href="#workflow">6. 脚本思路与流程</a></li>
+        <li><a href="#architecture">7. 模块框架图</a></li>
+        <li><a href="#functions">8. 函数功能说明</a></li>
+        <li><a href="#formats">9. 字段格式与 JSON 视图</a></li>
+        <li><a href="#git-commit">10. Git 提交说明</a></li>
+        <li><a href="#notes">11. 注意事项</a></li>
+        <li><a href="#troubleshooting">12. 常见问题</a></li>
+      </ol>
+    </aside>
+
+    <main>
+      <section class="hero" id="overview">
+        <p class="eyebrow">Python 脚本说明文档</p>
+        <h1>run_get_bioinfor_from_NCBI_SRA.py</h1>
+        <p>
+          该脚本用于从 NCBI SRA 获取测序 run 的文件信息，并自动生成可直接执行的下载脚本和 MD5 校验文件。输入可以是单个
+          <code>SRR</code> / <code>ERR</code> / <code>DRR</code> run，也可以是项目或研究编号，例如 <code>PRJNA531644</code>、
+          <code>SRP191521</code>。
+        </p>
+        <div class="badge-row">
+          <span class="badge">Python 3</span>
+          <span class="badge">NCBI E-utilities</span>
+          <span class="badge">TSV 输出</span>
+          <span class="badge">wget / axel / aria2c / aws s3 cp</span>
+          <span class="badge">MD5 校验</span>
+        </div>
+      </section>
+
+      <section id="quickstart">
+        <h2>快速开始</h2>
+        <p>脚本只依赖 Python 标准库，不需要额外安装第三方 Python 包。运行前需要保证输出目录已经存在，并且当前网络可以访问 NCBI。</p>
+
+        <div class="mac-window">
+          <div class="mac-titlebar"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>terminal</div>
+          <pre><code class="language-bash"># 查看帮助
+python run_get_bioinfor_from_NCBI_SRA.py -h
+
+# 单个 SRA run
+python run_get_bioinfor_from_NCBI_SRA.py -i SRR8869110 -o ./download2
+
+# BioProject 项目号
+python run_get_bioinfor_from_NCBI_SRA.py -i PRJNA531644 -o ./download1
+
+# SRA Study 编号
+python run_get_bioinfor_from_NCBI_SRA.py -i SRP191521 -o ./download1</code></pre>
+        </div>
+
+        <div class="success">
+          <strong>最小使用条件：</strong>准备一个已存在的输出目录，传入 <code>-i</code> 指定 ID，传入 <code>-o</code> 指定输出目录。
+          脚本会自动判断输入是单个 run 还是项目/研究编号。
+        </div>
+      </section>
+
+      <section id="usage">
+        <h2>参数与使用示例</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>参数</th>
+                <th>是否必需</th>
+                <th>默认值</th>
+                <th class="wrap">说明</th>
+                <th>示例</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>-i</code>, <code>--input</code></td>
+                <td>是</td>
+                <td>无</td>
+                <td class="wrap">SRA run、study 或 BioProject ID。run 号通常以 <code>SRR</code>、<code>ERR</code>、<code>DRR</code> 开头。</td>
+                <td><code>SRR8869110</code></td>
+              </tr>
+              <tr>
+                <td><code>-o</code>, <code>--output_dir</code></td>
+                <td>否</td>
+                <td><code>./</code></td>
+                <td class="wrap">输出目录。脚本只检查目录是否存在且是目录，不会自动创建目录。</td>
+                <td><code>./download1</code></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>示例 1：下载单个 run 的文件信息</h3>
+        <div class="mac-window">
+          <div class="mac-titlebar"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>single-run.sh</div>
+          <pre><code class="language-bash">mkdir -p download2
+python run_get_bioinfor_from_NCBI_SRA.py -i SRR8869110 -o ./download2</code></pre>
+        </div>
+        <p>典型产物包括 <code>SRR8869110_infor.xls</code>、多种下载脚本和 <code>SRR8869110_download_md5.txt</code>。</p>
+
+        <h3>示例 2：解析 BioProject 下所有 run</h3>
+        <div class="mac-window">
+          <div class="mac-titlebar"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>project.sh</div>
+          <pre><code class="language-bash">mkdir -p download1
+python run_get_bioinfor_from_NCBI_SRA.py -i PRJNA531644 -o ./download1</code></pre>
+        </div>
+        <p>项目输入会额外生成 <code>PRJNA531644_run_list.txt</code> 和 <code>PRJNA531644_all_run_infor.xls</code>。</p>
+
+        <h3>示例 3：执行下载脚本与校验</h3>
+        <div class="mac-window">
+          <div class="mac-titlebar"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>download-and-check.sh</div>
+          <pre><code class="language-bash">cd download2
+bash SRR8869110_download_wget.sh
+md5sum -c SRR8869110_download_md5.txt</code></pre>
+        </div>
+      </section>
+
+      <section id="outputs">
+        <h2>输入输出文件说明</h2>
+        <h3>输入</h3>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>输入类型</th>
+                <th>识别方式</th>
+                <th>处理路径</th>
+                <th class="wrap">说明</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>单 run ID</td>
+                <td><code>SRR*</code> / <code>ERR*</code> / <code>DRR*</code></td>
+                <td>直接调用 efetch</td>
+                <td class="wrap">脚本将输入视为一个具体 run，并只生成该 run 的文件信息。</td>
+              </tr>
+              <tr>
+                <td>项目或研究 ID</td>
+                <td>其他字符串，例如 <code>PRJNA*</code>、<code>SRP*</code></td>
+                <td>先 esearch，再 efetch</td>
+                <td class="wrap">脚本先搜索 SRA 记录 UID，再从 XML 中解析所有 run accession。</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>输出</h3>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>文件名模式</th>
+                <th>生成场景</th>
+                <th class="wrap">内容</th>
+                <th>格式</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>{RUN}_infor.xls</code></td>
+                <td>每个 run</td>
+                <td class="wrap">该 run 的 SRAFile 和 Alternatives 记录。虽然扩展名是 <code>.xls</code>，实际是 Tab 分隔文本。</td>
+                <td>TSV</td>
+              </tr>
+              <tr>
+                <td><code>{INPUT}_run_list.txt</code></td>
+                <td>项目/研究 ID</td>
+                <td class="wrap">从项目/研究解析出的 run accession，每行一个。</td>
+                <td>TXT</td>
+              </tr>
+              <tr>
+                <td><code>{INPUT}_all_run_infor.xls</code></td>
+                <td>项目/研究 ID</td>
+                <td class="wrap">项目下所有 run 的文件信息合并表。</td>
+                <td>TSV</td>
+              </tr>
+              <tr>
+                <td><code>{PREFIX}_download_wget.sh</code></td>
+                <td>run 和项目/研究</td>
+                <td class="wrap">使用 <code>wget -c -O</code> 下载匿名 HTTPS 链接。</td>
+                <td>Bash</td>
+              </tr>
+              <tr>
+                <td><code>{PREFIX}_download_axel.sh</code></td>
+                <td>run 和项目/研究</td>
+                <td class="wrap">使用 <code>axel -a -n 10 -o</code> 下载匿名 HTTPS 链接。</td>
+                <td>Bash</td>
+              </tr>
+              <tr>
+                <td><code>{PREFIX}_download_aria2c.sh</code></td>
+                <td>run 和项目/研究</td>
+                <td class="wrap">使用 <code>aria2c -c -x 8 -j 8 -s 8 -o</code> 下载匿名 HTTPS 链接。</td>
+                <td>Bash</td>
+              </tr>
+              <tr>
+                <td><code>{PREFIX}_download_aws_s3_cp.sh</code></td>
+                <td>run 和项目/研究</td>
+                <td class="wrap">对 <code>s3://</code> 或 <code>*.s3.amazonaws.com</code> 格式的匿名公开链接，使用 <code>aws s3 cp --no-sign-request</code> 下载，并在本地文件已存在时跳过。</td>
+                <td>Bash</td>
+              </tr>
+              <tr>
+                <td><code>{PREFIX}_download_md5.txt</code></td>
+                <td>run 和项目/研究</td>
+                <td class="wrap">可下载文件的 MD5 和文件名，适配 <code>md5sum -c</code>。</td>
+                <td>TXT</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="samples">
+        <h2>文件内容展示</h2>
+        <h3>run 列表</h3>
+        <div class="mac-window">
+          <div class="mac-titlebar"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>download1/PRJNA531644_run_list.txt</div>
+          <pre><code class="language-text">SRR8869105
+SRR8869107
+SRR8869108
+SRR8869109
+SRR8869110
+SRR9054070</code></pre>
+        </div>
+
+        <h3>信息表部分展示</h3>
+        <p>信息表为 TSV 文件。列较多时可使用横向滚动查看；下表保留了样例中的关键列和对齐方式。</p>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>run</th>
+                <th>cluster</th>
+                <th>filename</th>
+                <th>size</th>
+                <th>date</th>
+                <th>md5</th>
+                <th>semantic_name</th>
+                <th>url</th>
+                <th>free_egress</th>
+                <th>access_type</th>
+                <th>org</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>SRR8869110</td>
+                <td>public</td>
+                <td>nash3_possorted_genome_bam.bam</td>
+                <td>21804220950</td>
+                <td>2019-04-09 12:09:06</td>
+                <td>c8ce9fb197c380aa72dd706cd90217c6</td>
+                <td>10X Genomics bam file</td>
+                <td>https://sra-pub-src-1.s3.amazonaws.com/SRR8869110/nash3_possorted_genome_bam.bam.1</td>
+                <td>worldwide</td>
+                <td>anonymous</td>
+                <td>AWS</td>
+              </tr>
+              <tr>
+                <td>SRR8869110</td>
+                <td>public</td>
+                <td>SRR8869110</td>
+                <td>8145219414</td>
+                <td>2019-04-09 12:18:10</td>
+                <td>680f939eac936b693bcd399e3bc85da5</td>
+                <td>SRA Normalized</td>
+                <td>https://sra-pub-run-odp.s3.amazonaws.com/sra/SRR8869110/SRR8869110</td>
+                <td>worldwide</td>
+                <td>anonymous</td>
+                <td>AWS</td>
+              </tr>
+              <tr>
+                <td>SRR8869110</td>
+                <td>public</td>
+                <td>SRR8869110.sralite</td>
+                <td>6301990886</td>
+                <td>2020-08-13 18:26:56</td>
+                <td>97ea5db8d976fb6478d3d27ad79d4a7a</td>
+                <td>SRA Lite</td>
+                <td>https://sra-downloadb.be-md.ncbi.nlm.nih.gov/sos9/sra-pub-zq-922/SRR008/869/SRR8869110.sralite.1</td>
+                <td>worldwide</td>
+                <td>anonymous</td>
+                <td>NCBI</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>下载脚本部分展示</h3>
+        <div class="mac-window">
+          <div class="mac-titlebar"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>download2/SRR8869110_download_wget.sh</div>
+          <pre><code class="language-bash">#!/usr/bin/env bash
+set -euo pipefail
+
+# Download anonymous SRA links for SRR8869110
+# Generated by run_get_bioinfor_from_NCBI_SRA.py
+
+# filename: nash3_possorted_genome_bam.bam; semantic_name: 10X Genomics bam file
+wget -c -O nash3_possorted_genome_bam.bam https://sra-pub-src-1.s3.amazonaws.com/SRR8869110/nash3_possorted_genome_bam.bam.1</code></pre>
+        </div>
+
+        <h3>AWS S3 下载脚本部分展示</h3>
+        <div class="mac-window">
+          <div class="mac-titlebar"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>download2/SRR8869110_download_aws_s3_cp.sh</div>
+          <pre><code class="language-bash">#!/usr/bin/env bash
+set -euo pipefail
+
+# Download anonymous SRA links for SRR8869110
+# Generated by run_get_bioinfor_from_NCBI_SRA.py
+
+# filename: nash3_possorted_genome_bam.bam; semantic_name: 10X Genomics bam file
+[[ -f ./nash3_possorted_genome_bam.bam.1 ]] || aws s3 cp --no-sign-request s3://sra-pub-src-1/SRR8869110/nash3_possorted_genome_bam.bam.1 ./</code></pre>
+        </div>
+
+        <h3>MD5 文件部分展示</h3>
+        <div class="mac-window">
+          <div class="mac-titlebar"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>download2/SRR8869110_download_md5.txt</div>
+          <pre><code class="language-text">c8ce9fb197c380aa72dd706cd90217c6  nash3_possorted_genome_bam.bam
+680f939eac936b693bcd399e3bc85da5  SRR8869110
+97ea5db8d976fb6478d3d27ad79d4a7a  SRR8869110.sralite</code></pre>
+        </div>
+      </section>
+
+      <section id="workflow">
+        <h2>脚本思路与流程</h2>
+        <p>脚本的核心思路是：先把用户输入解析为一个或多个 run accession，再逐个抓取 XML 文件信息，最后把匿名可下载链接转换成下载命令和校验清单。</p>
+
+        <div class="flow">
+          <div class="flow-row" aria-label="脚本流程图">
+            <div class="step"><strong>解析参数</strong><span>读取 -i 和 -o</span></div>
+            <div class="arrow">→</div>
+            <div class="step"><strong>检查输出目录</strong><span>确认目录存在</span></div>
+            <div class="arrow">→</div>
+            <div class="step"><strong>解析输入 ID</strong><span>run 直通，项目先搜索</span></div>
+            <div class="arrow">→</div>
+            <div class="step"><strong>获取 SRA XML</strong><span>调用 NCBI efetch</span></div>
+            <div class="arrow">→</div>
+            <div class="step"><strong>解析文件记录</strong><span>SRAFile + Alternatives</span></div>
+            <div class="arrow">→</div>
+            <div class="step"><strong>写出结果</strong><span>TSV、脚本、MD5</span></div>
+          </div>
+        </div>
+
+        <div class="grid">
+          <div class="card">
+            <h3>单 run 输入</h3>
+            <p><code>SRR8869110</code> 这类输入会直接进入 <code>fetch_sra_xml()</code>，输出前缀就是 run ID。</p>
+          </div>
+          <div class="card">
+            <h3>项目/研究输入</h3>
+            <p><code>PRJNA531644</code>、<code>SRP191521</code> 这类输入会先通过 <code>search_sra_uids()</code> 找到 SRA UID，再解析出所有 run。</p>
+          </div>
+        </div>
+      </section>
+
+      <section id="architecture">
+        <h2>模块框架图</h2>
+        <p>下面是脚本内部模块的职责分层。图中每个模块都由脚本中的普通函数实现，没有额外类或外部框架。</p>
+        <div class="flow">
+          <div class="arch" aria-label="脚本模块框架图">
+            <div class="arch-box">
+              <h3>命令行入口</h3>
+              <ul>
+                <li><code>parse_args()</code></li>
+                <li><code>main()</code></li>
+                <li><code>check_output_dir()</code></li>
+              </ul>
+            </div>
+            <div class="arch-box">
+              <h3>NCBI 请求层</h3>
+              <ul>
+                <li><code>fetch_url()</code></li>
+                <li><code>search_sra_uids()</code></li>
+                <li><code>fetch_sra_xml()</code></li>
+                <li><code>fetch_sra_xml_by_uids()</code></li>
+              </ul>
+            </div>
+            <div class="arch-box">
+              <h3>XML 解析层</h3>
+              <ul>
+                <li><code>parse_run_accessions()</code></li>
+                <li><code>resolve_input_to_runs()</code></li>
+                <li><code>parse_sra_files()</code></li>
+              </ul>
+            </div>
+            <div class="arch-box">
+              <h3>表格处理层</h3>
+              <ul>
+                <li><code>append_new_keys()</code></li>
+                <li><code>merge_columns()</code></li>
+                <li><code>read_table()</code></li>
+                <li><code>write_table()</code></li>
+              </ul>
+            </div>
+            <div class="arch-box">
+              <h3>下载脚本层</h3>
+              <ul>
+                <li><code>get_anonymous_download_rows()</code></li>
+                <li><code>build_s3_url()</code></li>
+                <li><code>build_download_command()</code></li>
+                <li><code>write_download_scripts()</code></li>
+                <li><code>write_md5_file()</code></li>
+              </ul>
+            </div>
+            <div class="arch-box">
+              <h3>任务编排层</h3>
+              <ul>
+                <li><code>process_run()</code></li>
+                <li><code>write_run_list()</code></li>
+                <li><code>write_project_outputs()</code></li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="functions">
+        <h2>函数功能说明</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>函数</th>
+                <th>输入</th>
+                <th>输出</th>
+                <th class="wrap">功能说明</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td><code>parse_args()</code></td><td>命令行参数</td><td><code>argparse.Namespace</code></td><td class="wrap">定义并解析 <code>-i/--input</code> 与 <code>-o/--output_dir</code>。</td></tr>
+              <tr><td><code>fetch_url(url, retries, timeout)</code></td><td>URL、重试次数、超时</td><td>UTF-8 文本</td><td class="wrap">带 User-Agent 请求远程 URL，失败时按次数重试。</td></tr>
+              <tr><td><code>check_output_dir(output_dir)</code></td><td><code>Path</code></td><td>无</td><td class="wrap">检查输出路径是否存在且为目录。</td></tr>
+              <tr><td><code>fetch_sra_xml(srr)</code></td><td>run ID</td><td>XML 文本</td><td class="wrap">调用 NCBI EFetch 获取单个 run 的 XML。</td></tr>
+              <tr><td><code>search_sra_uids(query)</code></td><td>项目/研究查询词</td><td>UID 列表</td><td class="wrap">调用 NCBI ESearch 搜索 SRA 记录 UID。</td></tr>
+              <tr><td><code>fetch_sra_xml_by_uids(uids)</code></td><td>UID 列表</td><td>XML 文本</td><td class="wrap">用逗号拼接 UID 后批量调用 EFetch。</td></tr>
+              <tr><td><code>parse_run_accessions(xml_text)</code></td><td>XML 文本</td><td>run ID 列表</td><td class="wrap">从 <code>RUN</code> 节点中解析 <code>SRR/ERR/DRR</code> accession，并去重排序。</td></tr>
+              <tr><td><code>resolve_input_to_runs(input_id)</code></td><td>用户输入 ID</td><td>run ID 列表</td><td class="wrap">判断输入类型，将单 run 或项目/研究统一解析为 run 列表。</td></tr>
+              <tr><td><code>append_new_keys(columns, record)</code></td><td>列名列表、记录</td><td>无</td><td class="wrap">当 XML 中出现新属性时追加为输出列。</td></tr>
+              <tr><td><code>parse_sra_files(xml_text, srr)</code></td><td>XML 文本、run ID</td><td>列名与行记录</td><td class="wrap">解析 <code>SRAFile</code> 及其 <code>Alternatives</code>，组合为表格行。</td></tr>
+              <tr><td><code>read_table(path)</code></td><td>TSV 路径</td><td>列名与行记录</td><td class="wrap">读取已存在的结果文件，用于跳过重复抓取后重新生成脚本。</td></tr>
+              <tr><td><code>write_table(path, columns, rows)</code></td><td>路径、列名、记录</td><td>无</td><td class="wrap">按 Tab 分隔写出信息表。</td></tr>
+              <tr><td><code>merge_columns(rows)</code></td><td>所有行记录</td><td>列名列表</td><td class="wrap">项目级汇总时合并默认列和实际出现的扩展列。</td></tr>
+              <tr><td><code>get_anonymous_download_rows(rows)</code></td><td>行记录</td><td>可下载行</td><td class="wrap">筛选 <code>access_type == anonymous</code> 且存在 <code>url</code> 的记录。</td></tr>
+              <tr><td><code>build_s3_url(url)</code></td><td>下载 URL</td><td>S3 URL 或空值</td><td class="wrap">将 <code>s3://</code> 或 <code>*.s3.amazonaws.com</code> HTTPS 链接规范化为 <code>s3://bucket/key</code> 格式。</td></tr>
+              <tr><td><code>build_download_command(tool, row)</code></td><td>工具名、行记录</td><td>命令字符串</td><td class="wrap">根据 <code>wget</code>、<code>axel</code>、<code>aria2c</code> 或 <code>aws s3 cp</code> 生成下载命令。</td></tr>
+              <tr><td><code>write_download_scripts(output_dir, prefix, download_rows)</code></td><td>目录、前缀、可下载行</td><td>脚本路径列表</td><td class="wrap">分别生成多种下载工具的 Bash 脚本并设置可执行权限。</td></tr>
+              <tr><td><code>write_md5_file(output_dir, prefix, download_rows)</code></td><td>目录、前缀、可下载行</td><td>MD5 文件路径</td><td class="wrap">写出 <code>md5  filename</code> 格式的校验文件。</td></tr>
+              <tr><td><code>process_run(run_id, output_dir)</code></td><td>run ID、输出目录</td><td>该 run 行记录</td><td class="wrap">处理单个 run；若信息表已存在，则复用旧表并重建脚本与 MD5。</td></tr>
+              <tr><td><code>write_run_list(output_dir, input_id, runs)</code></td><td>目录、输入 ID、run 列表</td><td>列表文件路径</td><td class="wrap">写出项目/研究解析得到的 run 列表。</td></tr>
+              <tr><td><code>write_project_outputs(output_dir, input_id, all_rows)</code></td><td>目录、输入 ID、所有行</td><td>无</td><td class="wrap">生成项目级合并信息表、下载脚本和 MD5 文件。</td></tr>
+              <tr><td><code>main()</code></td><td>无</td><td>退出码</td><td class="wrap">组织完整流程，成功返回 <code>0</code>，失败返回 <code>1</code>。</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="formats">
+        <h2>字段格式与 JSON 视图</h2>
+        <h3>默认输出列</h3>
+        <p><code>DEFAULT_COLUMNS</code> 定义了首选列顺序；如果 XML 中出现额外属性，脚本会把新属性追加到列尾。</p>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>字段</th>
+                <th class="wrap">含义</th>
+                <th>来源</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td><code>run</code></td><td class="wrap">run accession，例如 <code>SRR8869110</code>。</td><td>脚本补充</td></tr>
+              <tr><td><code>cluster</code></td><td class="wrap">SRA 文件所在集群或可见范围。</td><td><code>SRAFile</code> 属性</td></tr>
+              <tr><td><code>filename</code></td><td class="wrap">下载后建议保存的文件名。</td><td><code>SRAFile</code> 属性</td></tr>
+              <tr><td><code>size</code></td><td class="wrap">文件大小，单位为字节。</td><td><code>SRAFile</code> 属性</td></tr>
+              <tr><td><code>date</code></td><td class="wrap">文件记录时间。</td><td><code>SRAFile</code> 属性</td></tr>
+              <tr><td><code>md5</code></td><td class="wrap">文件 MD5 值。</td><td><code>SRAFile</code> 属性</td></tr>
+              <tr><td><code>version</code></td><td class="wrap">文件版本。</td><td><code>SRAFile</code> 属性</td></tr>
+              <tr><td><code>semantic_name</code></td><td class="wrap">文件类型描述，例如 SRA Normalized、SRA Lite、10X Genomics bam file。</td><td><code>SRAFile</code> 属性</td></tr>
+              <tr><td><code>supertype</code></td><td class="wrap">文件大类，例如 Original 或 Primary ETL。</td><td><code>SRAFile</code> 属性</td></tr>
+              <tr><td><code>sratoolkit</code></td><td class="wrap">是否与 SRA Toolkit 相关的标记。</td><td><code>SRAFile</code> 属性</td></tr>
+              <tr><td><code>url</code></td><td class="wrap">下载地址。脚本优先保留 <code>Alternatives</code> 中的真实下载 URL。</td><td><code>Alternatives</code> 属性</td></tr>
+              <tr><td><code>free_egress</code></td><td class="wrap">免费出口范围，例如 worldwide 或 s3.us-east-1。</td><td><code>Alternatives</code> 属性</td></tr>
+              <tr><td><code>access_type</code></td><td class="wrap">访问类型。只有 <code>anonymous</code> 且有 URL 的记录会进入下载脚本。</td><td><code>Alternatives</code> 属性</td></tr>
+              <tr><td><code>org</code></td><td class="wrap">文件服务来源，例如 AWS 或 NCBI。</td><td><code>Alternatives</code> 属性</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>单条记录的 pretty JSON 示例</h3>
+        <p>脚本实际输出是 TSV；下面用 pretty JSON 方式展示同一行记录，便于理解字段层级和含义。</p>
+        <div class="mac-window">
+          <div class="mac-titlebar"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>record.pretty.json</div>
+          <pre><code class="language-json">{
+  "run": "SRR8869110",
+  "cluster": "public",
+  "filename": "nash3_possorted_genome_bam.bam",
+  "size": "21804220950",
+  "date": "2019-04-09 12:09:06",
+  "md5": "c8ce9fb197c380aa72dd706cd90217c6",
+  "version": "1",
+  "semantic_name": "10X Genomics bam file",
+  "supertype": "Original",
+  "sratoolkit": "0",
+  "url": "https://sra-pub-src-1.s3.amazonaws.com/SRR8869110/nash3_possorted_genome_bam.bam.1",
+  "free_egress": "worldwide",
+  "access_type": "anonymous",
+  "org": "AWS"
+}</code></pre>
+        </div>
+      </section>
+
+      <section id="git-commit">
+        <h2>Git 提交说明</h2>
+        <p>仓库中的 <code>.gitignore</code> 已加入 <code>AGENTS.md</code>，因此执行 <code>git add .</code> 或提交当前目录内容时，<code>AGENTS.md</code> 不会被加入版本控制。</p>
+        <div class="mac-window">
+          <div class="mac-titlebar"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>.gitignore</div>
+          <pre><code class="language-gitignore">AGENTS.md</code></pre>
+        </div>
+        <p>提交前可使用下面的命令确认忽略规则生效：</p>
+        <div class="mac-window">
+          <div class="mac-titlebar"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>git-check.sh</div>
+          <pre><code class="language-bash">git status --short
+git check-ignore -v AGENTS.md</code></pre>
+        </div>
+        <div class="note">
+          <strong>Git safe.directory：</strong>如果当前环境提示 <code>dubious ownership</code>，可以临时使用
+          <code>git -c safe.directory='&lt;REPO_ROOT&gt;' status --short</code> 检查状态；该命令不会修改全局 Git 配置。
+        </div>
+      </section>
+
+      <section id="notes">
+        <h2>注意事项</h2>
+        <div class="warning">
+          <strong>输出目录不会自动创建。</strong>如果 <code>-o</code> 指向不存在的路径，脚本会报错并返回 <code>1</code>。先使用
+          <code>mkdir -p download1</code> 或手动创建目录。
+        </div>
+        <ul>
+          <li>信息表扩展名为 <code>.xls</code>，但本质是 UTF-8 TSV 文本；可用 Excel、WPS、LibreOffice 或文本编辑器打开。</li>
+          <li>脚本只把 <code>access_type</code> 为 <code>anonymous</code> 且存在 <code>url</code> 的记录写入下载脚本；AWS S3 下载脚本还要求 URL 是 <code>s3://</code> 或 <code>*.s3.amazonaws.com</code> 格式。</li>
+          <li>某些 URL 是 <code>s3://</code> 或需要云身份访问，这类记录通常不会出现在匿名下载脚本中。</li>
+          <li>如果某个 <code>{RUN}_infor.xls</code> 已存在，脚本会跳过重新抓取该 run，并基于现有表重新生成下载脚本和 MD5 文件。</li>
+          <li>下载脚本包含 <code>set -euo pipefail</code>，任一下载命令失败时脚本会停止。</li>
+          <li>项目/研究编号可能解析出大量 run，运行时间和 NCBI 请求次数会明显增加。</li>
+          <li>下载体积可能很大，执行下载脚本前应确认磁盘空间、网络稳定性和目标目录。</li>
+          <li>Windows PowerShell 可以运行 Python 脚本；生成的 <code>.sh</code> 下载脚本建议在 Git Bash、WSL 或 Linux/macOS 环境执行。</li>
+        </ul>
+      </section>
+
+      <section id="troubleshooting">
+        <h2>常见问题</h2>
+        <div class="grid">
+          <div class="card">
+            <h3>报错：Output directory does not exist</h3>
+            <p>输出目录不存在。先创建目录，再重新执行脚本。</p>
+            <div class="mac-window">
+              <div class="mac-titlebar"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>fix.sh</div>
+              <pre><code class="language-bash">mkdir -p download2
+python run_get_bioinfor_from_NCBI_SRA.py -i SRR8869110 -o ./download2</code></pre>
+            </div>
+          </div>
+          <div class="card">
+            <h3>报错：No SRA records found</h3>
+            <p>输入 ID 可能写错，或 NCBI SRA 中没有该记录。检查编号前缀和完整数字。</p>
+          </div>
+          <div class="card">
+            <h3>下载脚本为空或命令很少</h3>
+            <p>脚本只导出匿名可访问链接。如果 XML 中主要是云身份或受限访问链接，下载脚本会相应减少。</p>
+          </div>
+          <div class="card">
+            <h3>MD5 校验失败</h3>
+            <p>优先检查下载是否中断、文件名是否被改动、是否有旧文件残留。可删除失败文件后重新执行下载脚本。</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="footer">
+        <p>文档基于当前仓库中的 <code>run_get_bioinfor_from_NCBI_SRA.py</code> 和 <code>download1</code> / <code>download2</code> 样例输出生成。</p>
+      </section>
+    </main>
+  </div>
+</body>
+</html>

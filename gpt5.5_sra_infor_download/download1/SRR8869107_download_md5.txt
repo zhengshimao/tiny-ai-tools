@@ -1,0 +1,3 @@
+b832be1be96dc6000caadc4fa8337382  chow3_possorted_genome_bam.bam
+c09b84535b275116a114ae164ee289f5  SRR8869107
+ed3c16e5bb6f51bedc60d9e169e8f6bd  SRR8869107.sralite
