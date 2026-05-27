@@ -13,6 +13,7 @@
 | [fastq_qc](./fastq_qc/)                     | 基于 fastp v1.3.3 的轻量 FASTQ 质控工具，单文件 C++，支持单双端、gzip 自动识别、多格式输出 | per-cycle 质量/含量/GC 统计 · Q20/Q30/Q40 检测 · 重复率 · 插入片段峰值 · 文本/JSON/TSV 输出。 | [1](#coding-agent) |
 | [sra_infor_download](./sra_infor_download/) | 从 NCBI SRA 获取 run / BioProject / Study 文件信息，并生成多工具下载脚本的 Python 工具 | SRA XML 解析 · run 列表生成 · TSV 信息表 · wget/axel/aria2c/aws s3 cp 下载脚本 · MD5 校验清单。 | [2](#coding-agent) |
 | [ena_infor_download](./ena_infor_download/) | 从 GSA/GSA-human 项目获取 metadata、md5 信息，并生成多工具下载脚本的 Python 工具 | GSA/GSA-human metadata 下载 · md5sum 解析 · MD5 校验清单 · aspera/axel/aria2c 下载脚本。 | [2](#coding-agent) |
+| [zenodo_download](./zenodo_download/)       | 从 Zenodo record 或 DOI 获取文件信息，并生成多工具下载脚本的 Python 工具 | Zenodo record/URL/DOI 解析 · manifest 文件清单 · URL 列表 · MD5 校验清单 · wget/axel/aria2c 下载脚本。 | [2](#coding-agent) |
 
 ### coding agent
 
