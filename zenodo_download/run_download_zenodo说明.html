@@ -1,0 +1,975 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>run_download_zenodo.py 使用说明</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #ffffff;
+      --text: #24292f;
+      --muted: #57606a;
+      --border: #d0d7de;
+      --soft: #f6f8fa;
+      --accent: #0969da;
+      --accent-soft: #ddf4ff;
+      --green: #1a7f37;
+      --orange: #bc4c00;
+      --red: #cf222e;
+      --purple: #8250df;
+      --shadow: 0 1px 2px rgba(31, 35, 40, .08);
+      --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+      --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      font-size: 16px;
+      line-height: 1.65;
+    }
+
+    a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 280px minmax(0, 1fr);
+      min-height: 100vh;
+    }
+
+    .sidebar {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow: auto;
+      padding: 24px 20px;
+      border-right: 1px solid var(--border);
+      background: #fff;
+    }
+
+    .sidebar h1 {
+      margin: 0 0 8px;
+      font-size: 16px;
+      line-height: 1.35;
+    }
+
+    .sidebar .subtitle {
+      margin: 0 0 16px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .toc {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .toc li {
+      margin: 3px 0;
+    }
+
+    .toc a {
+      display: block;
+      padding: 5px 8px;
+      border-radius: 6px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .toc a:hover {
+      background: var(--soft);
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    .content {
+      max-width: 1120px;
+      width: 100%;
+      padding: 40px 48px 80px;
+    }
+
+    .hero {
+      padding-bottom: 26px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 28px;
+    }
+
+    .hero h2 {
+      margin: 0;
+      padding-bottom: 0;
+      border-bottom: 0;
+      font-size: 34px;
+      line-height: 1.2;
+      letter-spacing: 0;
+    }
+
+    .hero p {
+      max-width: 880px;
+      margin: 12px 0 0;
+      color: var(--muted);
+      font-size: 16px;
+    }
+
+    section {
+      margin: 34px 0;
+    }
+
+    h2 {
+      padding-bottom: 8px;
+      margin: 38px 0 16px;
+      border-bottom: 1px solid var(--border);
+      font-size: 25px;
+      line-height: 1.3;
+      letter-spacing: 0;
+    }
+
+    h3 {
+      margin: 24px 0 10px;
+      font-size: 18px;
+      line-height: 1.35;
+      letter-spacing: 0;
+    }
+
+    p {
+      margin: 0 0 14px;
+    }
+
+    ul,
+    ol {
+      padding-left: 24px;
+    }
+
+    li {
+      margin: 4px 0;
+    }
+
+    code {
+      padding: .2em .4em;
+      border-radius: 6px;
+      background: rgba(175, 184, 193, 0.2);
+      font-family: var(--mono);
+      font-size: 85%;
+    }
+
+    .note {
+      margin: 16px 0;
+      padding: 14px 16px;
+      border: 1px solid var(--border);
+      border-left-width: 4px;
+      border-left-color: var(--orange);
+      border-radius: 8px;
+      background: #fff;
+      color: var(--text);
+    }
+
+    .mac-window {
+      margin: 14px 0;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: #fff;
+      box-shadow: var(--shadow);
+    }
+
+    .mac-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 34px;
+      padding: 0 12px;
+      border-bottom: 1px solid var(--border);
+      background: var(--soft);
+      color: var(--muted);
+      font-size: 13px;
+      font-family: var(--mono);
+    }
+
+    .dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      display: inline-block;
+      flex: 0 0 auto;
+    }
+
+    .dot.red {
+      background: #ff5f56;
+    }
+
+    .dot.yellow {
+      background: #ffbd2e;
+    }
+
+    .dot.green {
+      background: #27c93f;
+    }
+
+    pre {
+      margin: 0;
+      padding: 16px;
+      overflow: auto;
+      background: #fff;
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 13px;
+      line-height: 1.55;
+      tab-size: 2;
+    }
+
+    pre code {
+      padding: 0;
+      border-radius: 0;
+      background: transparent;
+      font-size: inherit;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+      margin: 16px 0;
+    }
+
+    .box {
+      padding: 14px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: #fff;
+      box-shadow: var(--shadow);
+    }
+
+    .box h3 {
+      margin-top: 0;
+    }
+
+    .flow {
+      margin: 18px 0;
+      padding: 18px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: #fff;
+      box-shadow: var(--shadow);
+    }
+
+    .flow-row {
+      display: flex;
+      align-items: stretch;
+      gap: 12px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+    }
+
+    .node {
+      position: relative;
+      min-width: 168px;
+      padding: 14px 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--soft);
+      text-align: center;
+    }
+
+    .node::after {
+      content: "";
+      position: absolute;
+      top: 50%;
+      right: -12px;
+      width: 12px;
+      height: 2px;
+      background: var(--border);
+    }
+
+    .node:last-child::after {
+      display: none;
+    }
+
+    .node strong {
+      display: block;
+      margin-bottom: 5px;
+      color: var(--text);
+      font-size: 14px;
+    }
+
+    .node small {
+      display: block;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .diagram {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 14px;
+      margin: 18px 0;
+      align-items: start;
+    }
+
+    .diagram-group {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: #fff;
+      overflow: hidden;
+      box-shadow: var(--shadow);
+    }
+
+    .diagram-title {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+      background: var(--soft);
+      font-weight: 600;
+    }
+
+    .diagram-body {
+      display: grid;
+      gap: 8px;
+      padding: 12px;
+    }
+
+    .pill {
+      padding: 8px 10px;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      background: #fff;
+      font-size: 13px;
+      text-align: center;
+    }
+
+    .table-wrap {
+      width: 100%;
+      margin: 14px 0;
+      overflow-x: auto;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: #fff;
+      box-shadow: var(--shadow);
+    }
+
+    table {
+      width: 100%;
+      min-width: 880px;
+      border-collapse: collapse;
+      font-size: 14px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    th,
+    td {
+      padding: 9px 12px;
+      border-bottom: 1px solid var(--border);
+      text-align: left;
+      vertical-align: top;
+      white-space: nowrap;
+    }
+
+    th {
+      background: var(--soft);
+      font-weight: 600;
+    }
+
+    td:nth-child(2),
+    td:nth-child(3) {
+      text-align: right;
+    }
+
+    tr:last-child td {
+      border-bottom: 0;
+    }
+
+    .kbd {
+      display: inline-block;
+      padding: 2px 6px;
+      border: 1px solid var(--border);
+      border-bottom-color: #afb8c1;
+      border-radius: 6px;
+      background: var(--soft);
+      box-shadow: inset 0 -1px 0 #afb8c1;
+      font-family: var(--mono);
+      font-size: 12px;
+    }
+
+    @media (max-width: 900px) {
+      .layout {
+        display: block;
+      }
+
+      .sidebar {
+        position: static;
+        height: auto;
+        border-right: 0;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .content {
+        padding: 28px 20px 64px;
+      }
+
+      .grid,
+      .diagram {
+        grid-template-columns: 1fr;
+      }
+
+      .node::after {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <h1>run_download_zenodo.py</h1>
+      <p class="subtitle">Zenodo 下载脚本生成器说明</p>
+      <ul class="toc">
+        <li><a href="#overview">1. 脚本概述</a></li>
+        <li><a href="#requirements">2. 运行环境</a></li>
+        <li><a href="#quickstart">3. 快速开始</a></li>
+        <li><a href="#record">4. --record 写法</a></li>
+        <li><a href="#workflow">5. 脚本思路</a></li>
+        <li><a href="#architecture">6. 框架图</a></li>
+        <li><a href="#functions">7. 函数功能</a></li>
+        <li><a href="#inputs">8. 输入说明</a></li>
+        <li><a href="#outputs">9. 输出文件</a></li>
+        <li><a href="#samples">10. 输出展示</a></li>
+        <li><a href="#json">11. JSON 示例</a></li>
+        <li><a href="#notes">12. 注意事项</a></li>
+        <li><a href="#troubleshooting">13. 常见问题</a></li>
+      </ul>
+    </aside>
+
+    <main class="content">
+      <div class="hero">
+        <h2>run_download_zenodo.py 使用说明</h2>
+        <p>
+          该脚本用于读取 Zenodo record 元数据，自动生成 <code>wget</code>、<code>axel</code>、<code>aria2c</code>
+          三套下载脚本，并提取 <code>md5</code> 校验文件、URL 列表和 manifest 表格。适合批量下载 Zenodo 数据集文件，
+          尤其适合包含多个大文件的生信数据记录。
+        </p>
+      </div>
+
+      <section id="overview">
+        <h2>1. 脚本概述</h2>
+        <div class="grid">
+          <div class="box">
+            <h3>核心用途</h3>
+            <p>从 Zenodo API 获取文件列表，生成可直接执行的下载脚本。</p>
+          </div>
+          <div class="box">
+            <h3>下载工具</h3>
+            <p>支持 <code>wget</code>、<code>axel</code>、<code>aria2c</code> 三种命令格式。</p>
+          </div>
+          <div class="box">
+            <h3>校验支持</h3>
+            <p>自动提取 Zenodo 元数据中的 <code>md5:</code> 校验值，输出为 <code>md5sum -c</code> 可用格式。</p>
+          </div>
+        </div>
+        <p>
+          当前脚本文件为 <code>run_download_zenodo.py</code>，仅使用 Python 标准库，不依赖第三方 Python 包。
+          生成的下载脚本面向 Linux/WSL/bash 环境执行。
+        </p>
+      </section>
+
+      <section id="requirements">
+        <h2>2. 运行环境</h2>
+        <ul>
+          <li>Python 3.6 或更高版本。</li>
+          <li>可访问 <code>https://zenodo.org/api/records/&lt;record_id&gt;</code> 的网络环境。</li>
+          <li>执行下载脚本时，需要安装对应下载工具: <code>wget</code>、<code>axel</code> 或 <code>aria2c</code>。</li>
+          <li>Windows 工作区建议在 WSL 中执行生成后的 <code>.sh</code> 下载脚本。</li>
+        </ul>
+      </section>
+
+      <section id="quickstart">
+        <h2>3. 快速开始</h2>
+        <h3>查看帮助</h3>
+        <div class="mac-window">
+          <div class="mac-title"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>Terminal</div>
+          <pre><code>python run_download_zenodo.py -h</code></pre>
+        </div>
+
+        <h3>为 Zenodo record 15596052 生成下载脚本</h3>
+        <div class="mac-window">
+          <div class="mac-title"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>Terminal</div>
+          <pre><code>python run_download_zenodo.py -r 15596052 -o scripts</code></pre>
+        </div>
+
+        <h3>在 WSL/Linux 中执行下载</h3>
+        <div class="mac-window">
+          <div class="mac-title"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>Terminal</div>
+          <pre><code>bash scripts/zenodo_15596052_wget.sh
+
+# 或使用 axel
+bash scripts/zenodo_15596052_axel.sh
+
+# 或使用 aria2c
+bash scripts/zenodo_15596052_aria2c.sh</code></pre>
+        </div>
+
+        <h3>下载后校验 MD5</h3>
+        <div class="mac-window">
+          <div class="mac-title"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>Terminal</div>
+          <pre><code>md5sum -c scripts/zenodo_15596052_md5.txt</code></pre>
+        </div>
+      </section>
+
+      <section id="record">
+        <h2>4. --record 写法</h2>
+        <p><code>--record</code> 是必填参数，支持多种输入形式。脚本会统一解析为 Zenodo record ID。</p>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>输入类型</th>
+                <th>示例</th>
+                <th>解析结果</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>纯数字 ID</td>
+                <td><code>15596052</code></td>
+                <td><code>15596052</code></td>
+              </tr>
+              <tr>
+                <td>Zenodo 页面链接</td>
+                <td><code>https://zenodo.org/records/15596052</code></td>
+                <td><code>15596052</code></td>
+              </tr>
+              <tr>
+                <td>Zenodo API 链接</td>
+                <td><code>https://zenodo.org/api/records/15596052</code></td>
+                <td><code>15596052</code></td>
+              </tr>
+              <tr>
+                <td>DOI 链接</td>
+                <td><code>https://doi.org/10.5281/zenodo.15596052</code></td>
+                <td><code>15596052</code></td>
+              </tr>
+              <tr>
+                <td>DOI 字符串</td>
+                <td><code>10.5281/zenodo.15596052</code></td>
+                <td><code>15596052</code></td>
+              </tr>
+              <tr>
+                <td>带 doi: 前缀</td>
+                <td><code>doi:10.5281/zenodo.15596052</code></td>
+                <td><code>15596052</code></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="workflow">
+        <h2>5. 脚本思路</h2>
+        <div class="flow">
+          <div class="flow-row">
+            <div class="node">
+              <strong>解析参数</strong>
+              <small>读取 --record、--outdir、--prefix、--timeout</small>
+            </div>
+            <div class="node">
+              <strong>识别 record ID</strong>
+              <small>兼容 ID、Zenodo URL、DOI URL、DOI 字符串</small>
+            </div>
+            <div class="node">
+              <strong>请求 Zenodo API</strong>
+              <small>使用 urllib 下载 JSON，网络错误自动重试</small>
+            </div>
+            <div class="node">
+              <strong>提取文件字段</strong>
+              <small>读取 key、size、checksum、links.self</small>
+            </div>
+            <div class="node">
+              <strong>写出结果</strong>
+              <small>生成 3 个下载脚本、MD5、URL、manifest</small>
+            </div>
+          </div>
+        </div>
+        <p>
+          脚本不会直接下载数据文件，只生成下载命令。这样可以先检查 manifest、选择合适工具，再在 WSL/Linux 中执行对应脚本。
+        </p>
+      </section>
+
+      <section id="architecture">
+        <h2>6. 框架图</h2>
+        <div class="diagram">
+          <div class="diagram-group">
+            <div class="diagram-title">输入层</div>
+            <div class="diagram-body">
+              <div class="pill">命令行参数</div>
+              <div class="pill">Record ID / URL / DOI</div>
+              <div class="pill">输出目录</div>
+            </div>
+          </div>
+          <div class="diagram-group">
+            <div class="diagram-title">处理层</div>
+            <div class="diagram-body">
+              <div class="pill">parse_record_id()</div>
+              <div class="pill">fetch_json()</div>
+              <div class="pill">extract_files()</div>
+              <div class="pill">format_size()</div>
+            </div>
+          </div>
+          <div class="diagram-group">
+            <div class="diagram-title">输出层</div>
+            <div class="diagram-body">
+              <div class="pill">wget shell script</div>
+              <div class="pill">axel shell script</div>
+              <div class="pill">aria2c shell script</div>
+              <div class="pill">md5 / urls / manifest</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="functions">
+        <h2>7. 函数功能</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>函数名</th>
+                <th>输入</th>
+                <th>输出</th>
+                <th>功能说明</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>check_output_dir(path)</code></td>
+                <td>输出目录路径</td>
+                <td><code>None</code></td>
+                <td>创建并校验输出目录是否为可写目录。</td>
+              </tr>
+              <tr>
+                <td><code>parse_record_id(record)</code></td>
+                <td>ID、URL 或 DOI 字符串</td>
+                <td>record ID 字符串</td>
+                <td>从多种 Zenodo 记录写法中提取数字 ID。</td>
+              </tr>
+              <tr>
+                <td><code>fetch_json(url, timeout, retries, retry_delay)</code></td>
+                <td>API URL、超时秒数、重试参数</td>
+                <td>解析后的 JSON 对象</td>
+                <td>下载 Zenodo API JSON；对网络错误、HTTP 429、5xx 执行重试。</td>
+              </tr>
+              <tr>
+                <td><code>extract_files(record_data)</code></td>
+                <td>Zenodo record JSON</td>
+                <td>文件信息列表</td>
+                <td>提取文件名、下载链接、大小和 MD5。</td>
+              </tr>
+              <tr>
+                <td><code>sh_quote(text)</code></td>
+                <td>任意字符串</td>
+                <td>shell 安全单引号字符串</td>
+                <td>防止文件名中的空格或单引号破坏 bash 命令。</td>
+              </tr>
+              <tr>
+                <td><code>format_size(size)</code></td>
+                <td>字节数</td>
+                <td>易读大小字符串</td>
+                <td>将字节数格式化为 B、KiB、MiB、GiB 或 TiB。</td>
+              </tr>
+              <tr>
+                <td><code>write_lines(path, lines)</code></td>
+                <td>输出路径和文本行</td>
+                <td><code>None</code></td>
+                <td>用 UTF-8 写出脚本、MD5 或 URL 列表。</td>
+              </tr>
+              <tr>
+                <td><code>write_manifest(path, files)</code></td>
+                <td>manifest 路径和文件信息列表</td>
+                <td><code>None</code></td>
+                <td>写出包含 <code>filename</code>、<code>size</code>、<code>size_bytes</code>、<code>md5</code>、<code>url</code> 的 TSV。</td>
+              </tr>
+              <tr>
+                <td><code>build_wget_script(files)</code></td>
+                <td>文件信息列表</td>
+                <td>脚本文本行列表</td>
+                <td>生成 <code>wget -c</code> 下载命令。</td>
+              </tr>
+              <tr>
+                <td><code>build_axel_script(files)</code></td>
+                <td>文件信息列表</td>
+                <td>脚本文本行列表</td>
+                <td>生成 <code>axel --insecure -c -n 20</code> 下载命令。</td>
+              </tr>
+              <tr>
+                <td><code>build_aria2c_script(files)</code></td>
+                <td>文件信息列表</td>
+                <td>脚本文本行列表</td>
+                <td>生成 <code>aria2c -c -j 16 -x 16 -s 1</code> 下载命令。</td>
+              </tr>
+              <tr>
+                <td><code>write_scripts(files, outdir, prefix)</code></td>
+                <td>文件信息、输出目录、文件名前缀</td>
+                <td>输出路径字典</td>
+                <td>统一写出所有下载脚本和辅助文件。</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="inputs">
+        <h2>8. 输入说明</h2>
+        <h3>命令行参数</h3>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>参数</th>
+                <th>是否必填</th>
+                <th>默认值</th>
+                <th>说明</th>
+                <th>示例</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>-r</code>, <code>--record</code></td>
+                <td>是</td>
+                <td>无</td>
+                <td>Zenodo record URL、API URL、数字 ID、DOI URL 或 DOI 字符串。</td>
+                <td><code>15596052</code></td>
+              </tr>
+              <tr>
+                <td><code>-o</code>, <code>--outdir</code></td>
+                <td>否</td>
+                <td><code>.</code></td>
+                <td>生成文件输出目录。目录不存在时自动创建。</td>
+                <td><code>scripts</code></td>
+              </tr>
+              <tr>
+                <td><code>-p</code>, <code>--prefix</code></td>
+                <td>否</td>
+                <td><code>zenodo_&lt;record_id&gt;</code></td>
+                <td>输出文件名前缀。</td>
+                <td><code>hiv_rna</code></td>
+              </tr>
+              <tr>
+                <td><code>-t</code>, <code>--timeout</code></td>
+                <td>否</td>
+                <td><code>60</code></td>
+                <td>单次 Zenodo API 请求超时时间，单位秒。</td>
+                <td><code>120</code></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="outputs">
+        <h2>9. 输出文件</h2>
+        <p>以 <code>python run_download_zenodo.py -r 15596052 -o scripts</code> 为例，输出文件如下。</p>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>文件</th>
+                <th>格式</th>
+                <th>用途</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>scripts/zenodo_15596052_wget.sh</code></td>
+                <td>bash 脚本</td>
+                <td>使用 <code>wget -c</code> 逐文件下载。</td>
+              </tr>
+              <tr>
+                <td><code>scripts/zenodo_15596052_axel.sh</code></td>
+                <td>bash 脚本</td>
+                <td>使用 <code>axel --insecure -c -n 20</code> 逐文件下载。</td>
+              </tr>
+              <tr>
+                <td><code>scripts/zenodo_15596052_aria2c.sh</code></td>
+                <td>bash 脚本</td>
+                <td>使用 <code>aria2c -c -j 16 -x 16 -s 1</code> 逐文件下载。</td>
+              </tr>
+              <tr>
+                <td><code>scripts/zenodo_15596052_md5.txt</code></td>
+                <td>两列文本</td>
+                <td><code>md5sum -c</code> 可直接读取的校验文件。</td>
+              </tr>
+              <tr>
+                <td><code>scripts/zenodo_15596052_urls.txt</code></td>
+                <td>一行一个 URL</td>
+                <td>保存所有 Zenodo 文件下载链接。</td>
+              </tr>
+              <tr>
+                <td><code>scripts/zenodo_15596052_manifest.tsv</code></td>
+                <td>TSV 表格</td>
+                <td>保存文件名、易读大小、字节数、MD5 和 URL。</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="samples">
+        <h2>10. 输出展示</h2>
+        <h3>运行日志示例</h3>
+        <div class="mac-window">
+          <div class="mac-title"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>Terminal</div>
+          <pre><code>2026-05-27 22:31:46 INFO: Argument values: {'record': '15596052', 'outdir': 'scripts', 'prefix': None, 'timeout': 60}
+2026-05-27 22:31:46 INFO: Starting ...
+2026-05-27 22:31:46 INFO: Fetching Zenodo record metadata: https://zenodo.org/api/records/15596052
+2026-05-27 22:31:48 INFO: Loaded files: count=27 total_size=31.24 GiB (33539956460 bytes)
+2026-05-27 22:31:48 INFO: Wrote aria2c: scripts/zenodo_15596052_aria2c.sh
+2026-05-27 22:31:48 INFO: Wrote axel: scripts/zenodo_15596052_axel.sh
+2026-05-27 22:31:48 INFO: Wrote manifest: scripts/zenodo_15596052_manifest.tsv
+2026-05-27 22:31:48 INFO: Wrote md5: scripts/zenodo_15596052_md5.txt
+2026-05-27 22:31:48 INFO: Wrote urls: scripts/zenodo_15596052_urls.txt
+2026-05-27 22:31:48 INFO: Wrote wget: scripts/zenodo_15596052_wget.sh
+2026-05-27 22:31:48 INFO: Done</code></pre>
+        </div>
+
+        <h3>wget 脚本片段</h3>
+        <div class="mac-window">
+          <div class="mac-title"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>zenodo_15596052_wget.sh</div>
+          <pre><code>#!/usr/bin/env bash
+set -euo pipefail
+
+# damha_reference.fasta (92 B)
+wget -c --content-disposition -O 'damha_reference.fasta' 'https://zenodo.org/api/records/15596052/files/damha_reference.fasta/content'
+# flair_sep (1.40 KiB)
+wget -c --content-disposition -O 'flair_sep' 'https://zenodo.org/api/records/15596052/files/flair_sep/content'
+# NL43_GFP_R2R.fasta (9.60 KiB)
+wget -c --content-disposition -O 'NL43_GFP_R2R.fasta' 'https://zenodo.org/api/records/15596052/files/NL43_GFP_R2R.fasta/content'</code></pre>
+        </div>
+
+        <h3>MD5 文件片段</h3>
+        <div class="mac-window">
+          <div class="mac-title"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>zenodo_15596052_md5.txt</div>
+          <pre><code>35daa62f4d9d52cc6a355efd6e9b6d57  damha_reference.fasta
+7f4e5fc662df47069325a8f6bd32a857  flair_sep
+322729b2775cd916841c4f3e21e8d22f  NL43_GFP_R2R.fasta
+a6601eded86eba52c1b6374ffe1c200b  damha_m6A_synthesizedFragment.tar.xz
+f8c4474610bd5c7810ac415e2e119434  11CI_Jurkats_HIV-GFP_cART.tar.xz</code></pre>
+        </div>
+
+        <h3>manifest 表格片段</h3>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>filename</th>
+                <th>size</th>
+                <th>size_bytes</th>
+                <th>md5</th>
+                <th>url</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>damha_reference.fasta</td>
+                <td>92 B</td>
+                <td>92</td>
+                <td>35daa62f4d9d52cc6a355efd6e9b6d57</td>
+                <td>https://zenodo.org/api/records/15596052/files/damha_reference.fasta/content</td>
+              </tr>
+              <tr>
+                <td>flair_sep</td>
+                <td>1.40 KiB</td>
+                <td>1436</td>
+                <td>7f4e5fc662df47069325a8f6bd32a857</td>
+                <td>https://zenodo.org/api/records/15596052/files/flair_sep/content</td>
+              </tr>
+              <tr>
+                <td>NL43_GFP_R2R.fasta</td>
+                <td>9.60 KiB</td>
+                <td>9826</td>
+                <td>322729b2775cd916841c4f3e21e8d22f</td>
+                <td>https://zenodo.org/api/records/15596052/files/NL43_GFP_R2R.fasta/content</td>
+              </tr>
+              <tr>
+                <td>11CI_Jurkats_HIV-GFP_cART.tar.xz</td>
+                <td>4.56 GiB</td>
+                <td>4893001644</td>
+                <td>f8c4474610bd5c7810ac415e2e119434</td>
+                <td>https://zenodo.org/api/records/15596052/files/11CI_Jurkats_HIV-GFP_cART.tar.xz/content</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="json">
+        <h2>11. JSON 示例</h2>
+        <p>Zenodo API 返回的文件条目结构可概括为以下形式。这里使用 pretty print 方式展示。</p>
+        <div class="mac-window">
+          <div class="mac-title"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>Zenodo file item JSON</div>
+          <pre><code>{
+  "id": "dea01370-e9dc-4c9a-ba72-4c9e5fa93a7f",
+  "key": "damha_reference.fasta",
+  "size": 92,
+  "checksum": "md5:35daa62f4d9d52cc6a355efd6e9b6d57",
+  "links": {
+    "self": "https://zenodo.org/api/records/15596052/files/damha_reference.fasta/content"
+  }
+}</code></pre>
+        </div>
+        <p>脚本会将该 JSON 转换为内部文件对象:</p>
+        <div class="mac-window">
+          <div class="mac-title"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>Internal file object</div>
+          <pre><code>{
+  "name": "damha_reference.fasta",
+  "url": "https://zenodo.org/api/records/15596052/files/damha_reference.fasta/content",
+  "size": 92,
+  "md5": "35daa62f4d9d52cc6a355efd6e9b6d57"
+}</code></pre>
+        </div>
+      </section>
+
+      <section id="notes">
+        <h2>12. 使用注意事项</h2>
+        <ul>
+          <li>脚本只生成下载脚本，不会直接下载 Zenodo 数据文件。</li>
+          <li>生成的 <code>.sh</code> 文件建议在 WSL/Linux/bash 环境中执行。</li>
+          <li>下载大文件前应确认磁盘空间充足。示例记录总大小约 <code>31.24 GiB</code>。</li>
+          <li><code>wget</code>、<code>axel</code>、<code>aria2c</code> 三套脚本任选其一执行即可，不需要全部执行。</li>
+          <li>下载完成后建议运行 <code>md5sum -c scripts/zenodo_15596052_md5.txt</code> 校验文件完整性。</li>
+          <li>如果 Zenodo API 短暂不可用，脚本会自动重试；非 429 的 4xx 错误通常表示 record 参数或权限存在问题。</li>
+        </ul>
+      </section>
+
+      <section id="troubleshooting">
+        <h2>13. 常见问题</h2>
+        <h3>提示 Cannot parse a Zenodo record ID</h3>
+        <p>检查 <code>--record</code> 是否为支持的 ID、URL 或 DOI 格式。推荐先用纯数字 ID 测试。</p>
+
+        <h3>下载脚本无法执行</h3>
+        <p>确认当前环境是 bash，并且对应下载工具已经安装。Windows PowerShell 不能直接执行 bash 脚本，建议使用 WSL。</p>
+
+        <h3>MD5 校验失败</h3>
+        <p>通常表示文件未完整下载或内容损坏。删除失败文件或重新执行下载脚本，让下载工具续传或重新下载。</p>
+
+        <h3>中文注释在 PowerShell 中显示乱码</h3>
+        <p>这通常是控制台编码显示问题。脚本文件使用 UTF-8 编码保存，Python 按 UTF-8 读取正常。</p>
+      </section>
+    </main>
+  </div>
+</body>
+</html>
