@@ -20,7 +20,7 @@ Author: Shimao Zheng
 Agent: ChatGPT + me and Codex + GPT5.5
 
 Example:
-  fastq_check.exe --read1 input_R1.fq.gz --read2 input_R2.fq.gz --infer-platform --detect-quality --strict-bases --json-report report.json";
+  fastq_check --read1 input_R1.fq.gz --read2 input_R2.fq.gz --infer-platform --detect-quality --strict-bases --json-report report.json";
 
 const READ_BUFFER_SIZE: usize = 1024 * 1024;
 
