@@ -1,0 +1,40 @@
+{
+  "read1": {
+    "path": "example/illumina_R1.fq",
+    "total_reads": 25,
+    "total_bases": 3750,
+    "min_read_len": 150,
+    "max_read_len": 150,
+    "min_qual_ascii": 35,
+    "max_qual_ascii": 70,
+    "phred_detected": "Phred33",
+    "platform_inferred": "Illumina",
+    "platform_confidence": 1.0,
+    "platform_reads_sampled": 25,
+    "errors": 0
+  },
+  "read2": {
+    "path": "example/illumina_R2.fq",
+    "total_reads": 25,
+    "total_bases": 3750,
+    "min_read_len": 150,
+    "max_read_len": 150,
+    "min_qual_ascii": 44,
+    "max_qual_ascii": 70,
+    "phred_detected": "Phred33",
+    "platform_inferred": "Illumina",
+    "platform_confidence": 1.0,
+    "platform_reads_sampled": 25,
+    "errors": 0
+  },
+  "paired": {
+    "pairs_checked": 25,
+    "name_mismatches": 0,
+    "unpaired_reads": 0,
+    "errors": 0
+  },
+  "total_reads": 50,
+  "total_bases": 7500,
+  "errors": 0,
+  "elapsed_seconds": 0.03
+}

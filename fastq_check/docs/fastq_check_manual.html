@@ -1,0 +1,226 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>fastq_check 使用说明</title>
+<style>
+:root{--bg:#ffffff;--text:#24292f;--muted:#57606a;--border:#d0d7de;--soft:#f6f8fa;--code:#f6f8fa;--blue:#0969da;--green:#1a7f37;--orange:#bc4c00;--red:#cf222e;--shadow:0 8px 24px rgba(140,149,159,.2)}
+*{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--text);font:14px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,"Microsoft YaHei",sans-serif} a{color:var(--blue);text-decoration:none} a:hover{text-decoration:underline}.layout{display:grid;grid-template-columns:280px minmax(0,1fr);min-height:100vh}.toc{position:sticky;top:0;height:100vh;overflow:auto;padding:24px 18px;border-right:1px solid var(--border);background:#fbfbfc}.toc h1{font-size:18px;margin:0 0 12px}.toc .meta{font-size:12px;color:var(--muted);margin-bottom:18px}.toc ul{list-style:none;margin:0;padding:0}.toc li{margin:4px 0}.toc a{display:block;padding:4px 8px;border-radius:6px;color:#24292f}.toc a.h2{padding-left:22px;color:var(--muted);font-size:13px}.toc a:hover{background:#eef3f8;text-decoration:none}.content{max-width:1180px;padding:32px 44px 80px}.hero{border:1px solid var(--border);border-radius:10px;padding:24px;background:linear-gradient(180deg,#fff,#f6f8fa);box-shadow:var(--shadow)}.hero h1{margin:0 0 8px;font-size:30px}.hero p{margin:6px 0;color:var(--muted)}h2{font-size:24px;border-bottom:1px solid var(--border);padding-bottom:8px;margin:36px 0 16px}h3{font-size:18px;margin:24px 0 10px}.note{border-left:4px solid var(--blue);background:#f6f8fa;padding:12px 14px;border-radius:6px;margin:14px 0}.warn{border-left-color:var(--orange)}.ok{border-left-color:var(--green)}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}.card{border:1px solid var(--border);border-radius:8px;padding:14px;background:#fff}.card h3{margin-top:0}.codebox{background:var(--code);border:1px solid var(--border);border-radius:8px;margin:12px 0;overflow:hidden}.codebar{height:32px;display:flex;align-items:center;gap:7px;padding:0 12px;border-bottom:1px solid var(--border);background:#eef0f3}.dot{width:10px;height:10px;border-radius:50%}.red{background:#ff5f57}.yellow{background:#ffbd2e}.green{background:#28c840}.codetitle{margin-left:6px;color:var(--muted);font-size:12px}pre{margin:0;padding:14px 16px;overflow:auto;white-space:pre;tab-size:4}code,pre{font-family:ui-monospace,SFMono-Regular,Consolas,"Liberation Mono",Menlo,monospace;font-size:13px}.tablewrap{overflow-x:auto;border:1px solid var(--border);border-radius:8px;background:#fff;margin:12px 0}table{border-collapse:collapse;min-width:760px;width:100%}th,td{border-bottom:1px solid var(--border);padding:9px 11px;text-align:left;vertical-align:top;white-space:nowrap}th{background:#f6f8fa;font-weight:600}tr:last-child td{border-bottom:0}.flow{display:flex;flex-wrap:wrap;gap:10px;align-items:center;background:#f6f8fa;border:1px solid var(--border);border-radius:10px;padding:16px}.node{background:#fff;border:1px solid var(--border);border-radius:8px;padding:10px 12px;min-width:150px;text-align:center;box-shadow:0 1px 0 rgba(27,31,36,.04)}.node strong{display:block}.arrow{color:var(--muted);font-weight:700}.swim{display:grid;grid-template-columns:repeat(4,minmax(170px,1fr));gap:12px}.lane{border:1px solid var(--border);border-radius:10px;background:#fff;overflow:hidden}.lane h3{margin:0;padding:10px 12px;background:#f6f8fa;border-bottom:1px solid var(--border);font-size:15px}.lane div{padding:10px 12px;border-bottom:1px dashed var(--border)}.lane div:last-child{border-bottom:0}.kbd{display:inline-block;border:1px solid var(--border);border-bottom-width:2px;border-radius:5px;padding:0 5px;background:#f6f8fa;font-family:ui-monospace,SFMono-Regular,Consolas,monospace}.small{font-size:12px;color:var(--muted)}@media(max-width:900px){.layout{grid-template-columns:1fr}.toc{position:relative;height:auto}.content{padding:22px}.swim{grid-template-columns:1fr}.arrow{display:none}}
+</style>
+</head>
+<body>
+<div class="layout">
+<nav class="toc">
+<h1>fastq_check</h1>
+<div class="meta">UTF-8 HTML 使用说明<br/>Version 0.0.1</div>
+<ul>
+<li><a href="#overview">1. 概览</a></li><li><a class="h2" href="#features">1.1 功能摘要</a></li><li><a class="h2" href="#metadata">1.2 脚本信息</a></li>
+<li><a href="#quickstart">2. 快速开始</a></li><li><a class="h2" href="#example-files">2.1 example 非压缩 FASTQ</a></li><li><a class="h2" href="#commands">2.2 使用示例</a></li>
+<li><a href="#inputs">3. 输入文件格式</a></li><li><a class="h2" href="#fastq-format">3.1 FASTQ 四行结构</a></li><li><a class="h2" href="#input-preview">3.2 输入文件部分展示</a></li>
+<li><a href="#outputs">4. 输出文件格式</a></li><li><a class="h2" href="#stdout">4.1 标准输出</a></li><li><a class="h2" href="#json-output">4.2 JSON 输出</a></li>
+<li><a href="#options">5. 参数说明</a></li><li><a class="h2" href="#option-table">5.1 参数表</a></li><li><a class="h2" href="#pigz">5.2 pigz 解压</a></li>
+<li><a href="#workflow">6. 脚本思路</a></li><li><a class="h2" href="#flowchart">6.1 流程图</a></li><li><a class="h2" href="#architecture">6.2 并行架构</a></li>
+<li><a href="#functions">7. 函数功能</a></li><li><a class="h2" href="#function-table">7.1 主要函数表</a></li><li><a class="h2" href="#checks">7.2 检查项</a></li>
+<li><a href="#notes">8. 使用注意事项</a></li><li><a class="h2" href="#quality-note">8.1 quality 字段说明</a></li><li><a class="h2" href="#platform-note">8.2 平台推测说明</a></li>
+</ul>
+</nav>
+<main class="content">
+<section class="hero" id="overview"><h1>fastq_check 使用说明</h1><p>一个 Rust 编写的 FASTQ/FASTQ.GZ 格式检查工具，支持单端、双端、平台推测、质量字符范围统计、JSON 报告和可选 pigz 多线程解压。</p><p>本文档为自包含 UTF-8 HTML 文件，示例基于 <span class="kbd">example</span> 目录下的非压缩 FASTQ 文件。</p></section>
+
+<h2 id="features">1.1 功能摘要</h2>
+<div class="grid"><div class="card"><h3>FASTQ 格式检查</h3><p>检查 header、plus 行、序列与质量长度是否一致、截断和 gzip EOF 等问题。</p></div><div class="card"><h3>单端/双端支持</h3><p>仅提供 <span class="kbd">--read1</span> 时执行单端检查；同时提供 <span class="kbd">--read2</span> 时执行双端配对一致性检查。</p></div><div class="card"><h3>并行处理</h3><p>读取线程按 batch 发送数据，Rayon worker 并行校验，线程局部统计后 reduce。</p></div><div class="card"><h3>平台推测</h3><p>可启用 <span class="kbd">--infer-platform</span>，从 header 推测 Illumina、BGI/MGI、PacBio、Oxford Nanopore 或 Unknown。</p></div></div>
+
+<h2 id="metadata">1.2 脚本信息</h2>
+<div class="codebox"><div class="codebar"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span><span class="codetitle">metadata</span></div><pre><code>Version: 0.0.1
+Email: zhengshimao007@163.com
+Create: 2026.06.05
+Update: -
+Author: Shimao Zheng
+Agent: ChatGPT + me and Codex + GPT5.5</code></pre></div>
+
+<h2 id="quickstart">2. 快速开始</h2>
+<h3 id="example-files">2.1 example 非压缩 FASTQ</h3>
+<div class="tablewrap"><table><thead><tr><th>文件</th><th>类型</th><th>说明</th><th>大小</th></tr></thead><tbody><tr><td>example/illumina_R1.fq</td><td>非压缩 FASTQ</td><td>Illumina R1 示例</td><td>9294 bytes</td></tr><tr><td>example/illumina_R2.fq</td><td>非压缩 FASTQ</td><td>Illumina R2 示例</td><td>9294 bytes</td></tr><tr><td>example/MGI_R1.fq</td><td>非压缩 FASTQ</td><td>BGI/MGI R1 示例</td><td>8400 bytes</td></tr><tr><td>example/MGI_R2.fq</td><td>非压缩 FASTQ</td><td>BGI/MGI R2 示例</td><td>8400 bytes</td></tr><tr><td>example/CRR1667053_part.fq</td><td>非压缩 FASTQ</td><td>公共库片段示例</td><td>1014559 bytes</td></tr><tr><td>example/CRR730507_part.fq</td><td>非压缩 FASTQ</td><td>公共库片段示例</td><td>832987 bytes</td></tr><tr><td>example/CRR947772_part.fastq</td><td>非压缩 FASTQ</td><td>公共库片段示例</td><td>118446 bytes</td></tr></tbody></table></div>
+
+<h3 id="commands">2.2 使用示例</h3>
+<div class="codebox"><div class="codebar"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span><span class="codetitle">Illumina paired-end example</span></div><pre><code>target/release/fastq_check ^
+  --read1 example/illumina_R1.fq ^
+  --read2 example/illumina_R2.fq ^
+  --infer-platform ^
+  --detect-quality ^
+  --strict-bases ^
+  --json-report example_illumina_report.json ^
+  --threads 4 ^
+  --batch-size 128</code></pre></div>
+<div class="codebox"><div class="codebar"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span><span class="codetitle">MGI paired-end example</span></div><pre><code>target/release/fastq_check ^
+  --read1 example/MGI_R1.fq ^
+  --read2 example/MGI_R2.fq ^
+  --infer-platform ^
+  --detect-quality ^
+  --strict-bases ^
+  --json-report example_mgi_report.json ^
+  --threads 4 ^
+  --batch-size 128</code></pre></div>
+<div class="note ok">以上两个命令已在本工作区运行，均为 <strong>Errors: 0</strong>。</div>
+
+<h2 id="inputs">3. 输入文件格式</h2>
+<h3 id="fastq-format">3.1 FASTQ 四行结构</h3>
+<div class="codebox"><div class="codebar"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span><span class="codetitle">FASTQ record</span></div><pre><code>@header
+ACGTN...
++
+quality_ascii...</code></pre></div>
+<p>脚本按四行一组读取记录。header 必须以 <span class="kbd">@</span> 开始，第三行必须以 <span class="kbd">+</span> 开始，sequence 与 quality 字符数必须一致。</p>
+
+<h3 id="input-preview">3.2 输入文件部分展示</h3>
+<div class="grid"><div class="card"><h3>Illumina R1</h3><div class="codebox"><pre><code>@A00459:371:H25C5DSX5:2:1101:9064:1000 1:N:0:GAACCTTAGC+ACGTCACAGA
+CNAAGGCTTGCTGATTAATTTTATCCATCACAACTGGCCCTCTCTTCTGCGACATCGTTTTCTGGAGGAATTTATCACTCCCATTGTAAAGGTATCTAAAAACAAGCAAGAAATGGCATTTTACAGCCTTCCTGAATTTGAAGAGTGGAA
++
+F#FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:FFFFFFFFFFFF:FFFFFFFFF:FFFFFFFFFFFFFFFFFFF:FF:FF:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFF,</code></pre></div></div><div class="card"><h3>Illumina R2</h3><div class="codebox"><pre><code>@A00459:371:H25C5DSX5:2:1101:9064:1000 2:N:0:GAACCTTAGC+ACGTCACAGA
+TTTTGCTAAAGGCCAGGCTGATAGCAGCATCATCTTCAGGACCAGAATATTTGAACTGGATACGATGTCTTTTCATATCTGCAAAGTATTCTTTAGCTTCCTTTGATGTGCTGGTGCCCAAACCTTTGTAATATTTGACTTTCCATTTTT
++
+FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:FFFFFF,FFF:,FFFFFFFFFFFFF</code></pre></div></div><div class="card"><h3>MGI R1</h3><div class="codebox"><pre><code>@E250122340L1C001R00100012764/1
+GGGGGGTAAGGCGAGGTTAGCGAGGCTTGCTAGAAGTCATCAAAAAGGTATTAGTGGGAGTAGAGTTTGAAGTCCTTGAGAGAGGATTATGATGCGACTGTGAGTGCGTTCGTAGTTTGAGTTTGCTAGGAAGAGTAGTAATGAGGATGT
++
+DDDDDDDDDDDDDDDDDDDDDDD9DDDDD9DDDDDD,DDDDDDDDDD,DDDDD,D,D,,D,DDDDDDDDDDDD,DDDDD9DDD,9DDDDDD,DDDDDDD,DDDD9D9DD9DD,DDD9D9D9DDDD,DDD,,DDD,D9DDDD,DD,9,DDD</code></pre></div></div><div class="card"><h3>MGI R2</h3><div class="codebox"><pre><code>@E250122340L1C001R00100012764/2
+GCTCATTGCATACTCTTCAATCAGCCACATAGCCCTCGTAGTAACAGCCATTCTCATCCAAACCCCCTGAAGCTTCACCGGCGCAGTCATTCTCATAATCGCCCACGGACTTACATCCTCATTACTATTCTGCCTAGCAAACTCAAACTA
++
+DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD9DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD9DDDDDDDDD</code></pre></div></div></div>
+
+<h2 id="outputs">4. 输出文件格式</h2>
+<h3 id="stdout">4.1 标准输出</h3>
+<div class="codebox"><div class="codebar"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span><span class="codetitle">stdout</span></div><pre><code>Total reads: 50
+Total bases: 7500
+Errors: 0
+Elapsed seconds: 0.030
+example/illumina_R1.fq: reads=25, bases=3750, errors=0
+example/illumina_R1.fq: quality=Phred33
+example/illumina_R1.fq: platform=Illumina confidence=1.000 sampled_reads=25
+example/illumina_R2.fq: reads=25, bases=3750, errors=0
+example/illumina_R2.fq: quality=Phred33
+example/illumina_R2.fq: platform=Illumina confidence=1.000 sampled_reads=25</code></pre></div>
+<p>错误明细输出到标准错误。启用 <span class="kbd">--pigz</span> 且读取 <span class="kbd">.gz</span> 文件时，标准输出会额外提示使用的 pigz 路径、线程数和输入文件。</p>
+
+<h3 id="json-output">4.2 JSON 输出</h3>
+<div class="grid"><div class="card"><h3>Illumina pretty JSON</h3><div class="codebox"><pre><code>{
+  "read1": {
+    "path": "example/illumina_R1.fq",
+    "total_reads": 25,
+    "total_bases": 3750,
+    "min_read_len": 150,
+    "max_read_len": 150,
+    "min_qual_ascii": 35,
+    "max_qual_ascii": 70,
+    "phred_detected": "Phred33",
+    "platform_inferred": "Illumina",
+    "platform_confidence": 1.0,
+    "platform_reads_sampled": 25,
+    "errors": 0
+  },
+  "read2": {
+    "path": "example/illumina_R2.fq",
+    "total_reads": 25,
+    "total_bases": 3750,
+    "min_read_len": 150,
+    "max_read_len": 150,
+    "min_qual_ascii": 44,
+    "max_qual_ascii": 70,
+    "phred_detected": "Phred33",
+    "platform_inferred": "Illumina",
+    "platform_confidence": 1.0,
+    "platform_reads_sampled": 25,
+    "errors": 0
+  },
+  "paired": {
+    "pairs_checked": 25,
+    "name_mismatches": 0,
+    "unpaired_reads": 0,
+    "errors": 0
+  },
+  "total_reads": 50,
+  "total_bases": 7500,
+  "errors": 0,
+  "elapsed_seconds": 0.03
+}</code></pre></div></div><div class="card"><h3>MGI pretty JSON</h3><div class="codebox"><pre><code>{
+  "read1": {
+    "path": "example/MGI_R1.fq",
+    "total_reads": 25,
+    "total_bases": 3750,
+    "min_read_len": 150,
+    "max_read_len": 150,
+    "min_qual_ascii": 33,
+    "max_qual_ascii": 68,
+    "phred_detected": "Phred33",
+    "platform_inferred": "BGI/MGI",
+    "platform_confidence": 1.0,
+    "platform_reads_sampled": 25,
+    "errors": 0
+  },
+  "read2": {
+    "path": "example/MGI_R2.fq",
+    "total_reads": 25,
+    "total_bases": 3750,
+    "min_read_len": 150,
+    "max_read_len": 150,
+    "min_qual_ascii": 33,
+    "max_qual_ascii": 68,
+    "phred_detected": "Phred33",
+    "platform_inferred": "BGI/MGI",
+    "platform_confidence": 1.0,
+    "platform_reads_sampled": 25,
+    "errors": 0
+  },
+  "paired": {
+    "pairs_checked": 25,
+    "name_mismatches": 0,
+    "unpaired_reads": 0,
+    "errors": 0
+  },
+  "total_reads": 50,
+  "total_bases": 7500,
+  "errors": 0,
+  "elapsed_seconds": 0.019
+}</code></pre></div></div></div>
+
+<h2 id="options">5. 参数说明</h2>
+<h3 id="option-table">5.1 参数表</h3>
+<div class="tablewrap"><table><thead><tr><th>参数</th><th>默认值</th><th>作用</th><th>注意事项</th></tr></thead><tbody><tr><td>--read1 / -1</td><td>必填</td><td>输入 R1 或单端 FASTQ/FASTQ.GZ</td><td>单端模式只需提供该参数</td></tr><tr><td>--read2 / -2</td><td>无</td><td>输入 R2 FASTQ/FASTQ.GZ</td><td>提供后启用双端配对检查</td></tr><tr><td>--threads</td><td>0</td><td>Rayon worker 线程数</td><td>0 表示由 Rayon 自动选择</td></tr><tr><td>--batch-size</td><td>8192</td><td>每个 batch 包含的 FASTQ records 数</td><td>不是文件数；8192 records 等于 32768 行</td></tr><tr><td>--pigz</td><td>false</td><td>对 .gz 文件使用外部 pigz 解压</td><td>不指定则保持 flate2 读取</td></tr><tr><td>--pigz-threads</td><td>8</td><td>传给 pigz 的线程数</td><td>必须大于 0</td></tr><tr><td>--pigz-path</td><td>pigz</td><td>pigz 可执行文件路径</td><td>PATH 不生效时可指定完整路径</td></tr><tr><td>--strict-bases</td><td>false</td><td>限制碱基为 A/C/G/T/N</td><td>小写或 IUPAC 扩展碱基会报错</td></tr><tr><td>--detect-quality</td><td>false</td><td>统计 quality ASCII 范围并推测编码</td><td>min/max 字段是 ASCII，不是解码后的 Q 值</td></tr><tr><td>--infer-platform</td><td>false</td><td>从 header 推测平台</td><td>结果为启发式，不作为强校验</td></tr><tr><td>--platform-sample-size</td><td>10000</td><td>每个文件用于平台推测的 reads 数</td><td>只影响平台推测；完整性检查仍扫描全文件</td></tr><tr><td>--json-report</td><td>无</td><td>输出 pretty JSON 报告</td><td>不指定则只输出终端摘要</td></tr></tbody></table></div>
+
+<h3 id="pigz">5.2 pigz 解压</h3>
+<div class="codebox"><div class="codebar"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span><span class="codetitle">pigz example</span></div><pre><code>target/release/fastq_check ^
+  --read1 input_R1.fq.gz ^
+  --read2 input_R2.fq.gz ^
+  --pigz ^
+  --pigz-path /path/to/pigz ^
+  --pigz-threads 8 ^
+  --threads 8 ^
+  --json-report report.json</code></pre></div>
+<div class="note warn">pigz 只负责 gzip 解压；FASTQ 检查和统计仍由 Rust 程序执行。非压缩 FASTQ 即使指定 <span class="kbd">--pigz</span> 也会按普通文本读取。</div>
+
+<h2 id="workflow">6. 脚本思路</h2>
+<h3 id="flowchart">6.1 流程图</h3>
+<div class="flow"><div class="node"><strong>解析参数</strong><span>clap</span></div><div class="arrow">→</div><div class="node"><strong>打开输入</strong><span>plain / flate2 / pigz</span></div><div class="arrow">→</div><div class="node"><strong>读取 batch</strong><span>FASTQ records</span></div><div class="arrow">→</div><div class="node"><strong>并行校验</strong><span>Rayon workers</span></div><div class="arrow">→</div><div class="node"><strong>Reduce</strong><span>局部统计合并</span></div><div class="arrow">→</div><div class="node"><strong>输出</strong><span>stdout / JSON</span></div></div>
+
+<h3 id="architecture">6.2 并行架构</h3>
+<div class="swim"><div class="lane"><h3>Reader Thread</h3><div>BufReader 1 MiB 大缓冲</div><div>按 4 行解析 FASTQ record</div><div>预分配 batch Vec</div><div>发送到 bounded channel</div></div><div class="lane"><h3>Crossbeam Channel</h3><div>有界队列提供背压</div><div>单端 batch 或双端 pair batch</div><div>减少 worker 等待</div></div><div class="lane"><h3>Rayon Workers</h3><div>并行消费 batch</div><div>使用 &[u8] 校验</div><div>线程局部统计</div><div>错误输出到 stderr</div></div><div class="lane"><h3>Reducer</h3><div>合并 read 统计</div><div>合并 paired 统计</div><div>推测平台和 Phred</div><div>生成 pretty JSON</div></div></div>
+
+<h2 id="functions">7. 函数功能</h2>
+<h3 id="function-table">7.1 主要函数表</h3>
+<div class="tablewrap"><table><thead><tr><th>函数/结构</th><th>职责</th><th>输入</th><th>输出/副作用</th></tr></thead><tbody><tr><td>main</td><td>解析参数、构建线程池、执行检查、输出报告</td><td>命令行参数</td><td>stdout、JSON、退出码</td></tr><tr><td>check_single</td><td>单端 FASTQ 检查流程</td><td>read1、Args、平台正则</td><td>FileStats</td></tr><tr><td>check_pair</td><td>双端 FASTQ 检查流程</td><td>read1、read2、Args、平台正则</td><td>Report</td></tr><tr><td>produce_single_batches</td><td>读取单端文件并按 batch 发送</td><td>路径、batch-size</td><td>Crossbeam channel 数据</td></tr><tr><td>produce_pair_batches</td><td>同步读取 R1/R2 并发送 pair batch</td><td>R1/R2 路径、batch-size</td><td>PairBatch</td></tr><tr><td>consume_single_batches</td><td>worker 消费单端 batch</td><td>Receiver&lt;Batch&gt;</td><td>FileLocalStats</td></tr><tr><td>consume_pair_batches</td><td>worker 消费双端 batch 并比较 read ID</td><td>Receiver&lt;PairBatch&gt;</td><td>PairLocalStats</td></tr><tr><td>validate_record</td><td>校验单条 FASTQ record</td><td>Record、Args</td><td>更新局部统计，错误写 stderr</td></tr><tr><td>finish_platform_stats</td><td>按采样 header 命中数推测平台</td><td>PlatformCounts</td><td>platform_inferred/confidence</td></tr><tr><td>open_fastq_with_pigz</td><td>通过外部 pigz 流式解压</td><td>.gz 路径、pigz 参数</td><td>BufRead stdout pipe</td></tr></tbody></table></div>
+
+<h3 id="checks">7.2 检查项</h3>
+<div class="tablewrap"><table><thead><tr><th>检查项</th><th>单端</th><th>双端</th><th>说明</th></tr></thead><tbody><tr><td>Header 以 @ 开始</td><td>是</td><td>是</td><td>基础 FASTQ 格式</td></tr><tr><td>Plus 行以 + 开始</td><td>是</td><td>是</td><td>第三行格式</td></tr><tr><td>Seq/Qual 长度一致</td><td>是</td><td>是</td><td>每条 read 内部一致性</td></tr><tr><td>strict bases</td><td>可选</td><td>可选</td><td>A/C/G/T/N 大写限定</td></tr><tr><td>quality ASCII 范围</td><td>可选</td><td>可选</td><td>33..=126 视为可打印质量字符</td></tr><tr><td>平台推测</td><td>可选</td><td>可选</td><td>Illumina、BGI/MGI、PacBio、Oxford Nanopore、Unknown</td></tr><tr><td>Read ID 配对</td><td>不适用</td><td>是</td><td>去掉 @ 和 /1 /2 后比较第一字段</td></tr><tr><td>Unpaired reads</td><td>不适用</td><td>是</td><td>某一端多出来的 reads 数</td></tr></tbody></table></div>
+
+<h2 id="notes">8. 使用注意事项</h2>
+<h3 id="quality-note">8.1 quality 字段说明</h3>
+<div class="note warn"><p><strong>min_qual_ascii</strong> 和 <strong>max_qual_ascii</strong> 是 FASTQ 第 4 行 quality 字符的 ASCII 编码范围，不是已经解码后的 Phred Q 值。</p><p>例如字符 <span class="kbd">I</span> 的 ASCII 是 73。如果按 Phred+33 解码，则 Q=40；如果按 Phred+64 解码，则 Q=9。因此脚本先报告 ASCII 范围，再给出启发式 <span class="kbd">phred_detected</span>。</p></div>
+
+<h3 id="platform-note">8.2 平台推测说明</h3>
+<div class="note"><p><span class="kbd">--infer-platform</span> 使用 header 模式做启发式推测。输出可能为 Illumina、BGI/MGI、PacBio、Oxford Nanopore 或 Unknown。</p><p><span class="kbd">--platform-sample-size</span> 只限制用于平台推测的 reads 数，FASTQ 完整性检查仍会扫描完整文件。</p></div>
+<div class="note warn"><p>平台推测不应作为强制格式校验。公共数据库下载的 FASTQ 可能经过转换，header 不一定保留原始测序仪格式。</p></div>
+
+</main>
+</div>
+</body>
+</html>
+
