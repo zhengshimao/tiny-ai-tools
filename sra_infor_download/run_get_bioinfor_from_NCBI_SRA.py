@@ -58,6 +58,7 @@ Email: zhengshimao007@163.com
 Create: 2026.05.24
 Update: 2026.05.24
 Author: Shimao Zheng
+Agent:  Codex + GPT5.5
 Example: python run_get_bioinfor_from_NCBI_SRA.py -i SRR8869110 -o ./
 Example: python run_get_bioinfor_from_NCBI_SRA.py -i PRJNA531644 -o ./
 Example: python run_get_bioinfor_from_NCBI_SRA.py -i SRP191521 -o ./
