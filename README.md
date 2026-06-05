@@ -14,6 +14,7 @@
 | [sra_infor_download](./sra_infor_download/) | 从 NCBI SRA 获取 run / BioProject / Study 文件信息，并生成多工具下载脚本的 Python 工具 | SRA XML 解析 · run 列表生成 · TSV 信息表 · wget/axel/aria2c/aws s3 cp 下载脚本 · MD5 校验清单。 | [2](#coding-agent) |
 | [gsa_infor_download](./gsa_infor_download/) | 从 GSA/GSA-human 项目获取 metadata、md5 信息，并生成多工具下载脚本的 Python 工具 | GSA/GSA-human metadata 下载 · md5sum 解析 · MD5 校验清单 · aspera/axel/aria2c 下载脚本。 | [2](#coding-agent) |
 | [zenodo_download](./zenodo_download/)       | 从 Zenodo record 或 DOI 获取文件信息，并生成多工具下载脚本的 Python 工具 | Zenodo record/URL/DOI 解析 · manifest 文件清单 · URL 列表 · MD5 校验清单 · wget/axel/aria2c 下载脚本。 | [2](#coding-agent) |
+| [fastq_check](./fastq_check/)               | 基于 Rust 的 FASTQ/FASTQ.GZ 格式检查工具，支持单双端、质量检测、平台推测、JSON 报告 | 格式检查 · 双端 ID 一致性 · 质量 ASCII 范围 · 平台推测 · JSON 报告 · Rayon 并行 · pigz 解压。 | [3](#coding-agent) + [2](#coding-agent) |
 
 ### coding agent
 
@@ -21,6 +22,7 @@
 | ---- | ------------ |
 | 1 | Claude code + DeepSeek V4 |
 | 2 | Codex + GPT5.5 |
+| 3 | ChatGPT free 2026.02  + me |
 
 *更多工具持续添加中…*
 
