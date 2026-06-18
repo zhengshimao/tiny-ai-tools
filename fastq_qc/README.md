@@ -71,6 +71,9 @@ make
 
 # 从 stdin 读取
 cat sample.fastq | ./fastq_qc -i -
+
+# Phred+64 输入：读入时转换为 Phred+33 后统计
+./fastq_qc -i sample_phred64.fq.gz -6 -o qc_report.json
 ```
 
 > 反斜杠 `\` 为 bash 续行符，可将长命令拆分为多行，也可写在同一行。
@@ -84,6 +87,7 @@ cat sample.fastq | ./fastq_qc -i -
 | `-o` | `<file>` | — | JSON 报告路径（不指定则不输出 JSON） |
 | `-p` | `<prefix>` | — | TSV 前缀。单端：`_summary.tsv` + cycles；双端：`_R1_summary`、`_R2_summary`、`_combined_summary` + cycles |
 | `-s` | `<id>` | 文件名 | TSV 中使用的样本 ID |
+| `-6`, `--phred64` | — | off | 输入 FASTQ 使用 Phred+64 质量体系；读入时转换为 Phred+33 后统计 |
 | `-percent` | — | off | 百分比模式：rate 以 0–100 输出；**默认小数** (0.0–1.0, 6dp) |
 | `-d` | `<n>` | `6` | rate 值保留的小数位数 |
 | `-is` | `<n>` | `512` | 最大插入片段大小（仅双端） |
@@ -128,6 +132,8 @@ cat sample.fastq | ./fastq_qc -i -
     "q40_bases": 0, "q40_rate": 0.000000,
     "gc_bases": 8486112, "gc_content": 0.530399,
     "cycle20_bases": 61266, "cycle20_rate": 0.998973,
+    "length_histogram": { "259": 123, "260": 60123, "261": 1083 },
+    "length_histogram_percent": { "259": 0.002006, "260": 0.980333, "261": 0.017661 },
     "quality_curves": { "A":[...], "T":[...], "C":[...], "G":[...], "mean":[...] },
     "content_curves": { "A":[...], "T":[...], "C":[...], "G":[...], "N":[...], "GC":[...] },
     "quality_histogram": { "33":221, "34":522, ..., "71":10499889 }
@@ -150,6 +156,10 @@ cat sample.fastq | ./fastq_qc -i -
 | 双端 | `_combined_summary.tsv` | R1+R2 合并指标 |
 | 通用 | `_R1_cycles.tsv` | cycle, mean_qual, A/T/C/G_qual, A/T/C/G/N_content, GC_content |
 | 双端 | `_R2_cycles.tsv` | 同上 per-cycle 列 |
+| 通用 | `_R1_lengths.tsv` | read1的 length, count统计 |
+| 通用 | `_R1_length_percent.tsv` | length, percent；默认 0.0–1.0，`-percent` 时为 0–100 |
+| 双端 | `_R2_lengths.tsv` | read2的length, count统计 |
+| 双端 | `_R2_length_percent.tsv` | length, percent；默认 0.0–1.0，`-percent` 时为 0–100 |
 
 #### stderr 日志
 
@@ -162,6 +172,10 @@ TSV summary R2 written to: sample1_R2_summary.tsv
 TSV combined summary written to: sample1_combined_summary.tsv
 TSV cycles R1 written to: sample1_R1_cycles.tsv
 TSV cycles R2 written to: sample1_R2_cycles.tsv
+TSV lengths R1 written to: sample1_R1_lengths.tsv
+TSV lengths R2 written to: sample1_R2_lengths.tsv
+TSV length percent R1 written to: sample1_R1_length_percent.tsv
+TSV length percent R2 written to: sample1_R2_length_percent.tsv
 Elapsed time: 2 sec (0 min 2 sec)
 ```
 
@@ -241,6 +255,8 @@ cycle20_rate = Σ m_cycle_q20[b][19] / m_cycle_total_base[19]
 | 某些 QC 报告 | 平均质量首次降至 Q20 以下的 cycle 编号 |
 
 如需全局 Q20+ 比率请使用 `q20_rate`。Q20 阈值为 Phred 20（Phred+33 编码下 ASCII `'5'`）。
+
+- **质量体系**：默认输入为 Phred+33。若输入为 Phred+64，请使用 `-6` / `--phred64`；程序会在读入阶段将质量字符转换为 Phred+33，后续 Q20/Q30/Q40、平均质量和 per-cycle 统计均按 Phred+33 处理。不会自动检测质量体系。
 
 ### 注意事项
 
@@ -335,6 +351,9 @@ make
 
 # From stdin
 cat sample.fastq | ./fastq_qc -i -
+
+# Phred+64 input: convert to Phred+33 on read
+./fastq_qc -i sample_phred64.fq.gz -6 -o qc_report.json
 ```
 
 > The backslash `\` is bash line-continuation syntax.
@@ -348,6 +367,7 @@ cat sample.fastq | ./fastq_qc -i -
 | `-o` | `<file>` | — | JSON report output path (omitted = no JSON) |
 | `-p` | `<prefix>` | — | TSV output prefix. SE: `_summary.tsv` + cycles. PE: `_R1_summary`, `_R2_summary`, `_combined_summary` + cycles |
 | `-s` | `<id>` | filename | Sample ID used in TSV output |
+| `-6`, `--phred64` | — | off | Input FASTQ uses Phred+64 quality scoring; convert to Phred+33 on read |
 | `-percent` | — | off | Output rates as percentages (0–100); **default: decimal** (0.0–1.0, 6dp) |
 | `-d` | `<n>` | `6` | Decimal places for rate values |
 | `-is` | `<n>` | `512` | Maximum insert size (paired-end only) |
@@ -361,8 +381,8 @@ cat sample.fastq | ./fastq_qc -i -
 See the Chinese section above for formatted examples. Key outputs:
 
 - **stdout**: aligned text summary with QC Summary, Duplication, and Insert Size sections
-- **`-o` JSON**: full per-cycle curves, quality histogram, duplication rate, insert size
-- **`-p` TSV**: summary table + per-cycle tables (`_R1_cycles.tsv`, `_R2_cycles.tsv`)
+- **`-o` JSON**: full per-cycle curves, quality histogram, read-length histogram/count percent, duplication rate, insert size
+- **`-p` TSV**: summary table + per-cycle tables (`_R1_cycles.tsv`, `_R2_cycles.tsv`) + read-length tables (`_R1_lengths.tsv`, `_R2_lengths.tsv`, `_R1_length_percent.tsv`, `_R2_length_percent.tsv`)
 - **stderr**: progress, file paths, and elapsed time
 
 ### Architecture
@@ -398,6 +418,7 @@ Ported from fastp v1.3.3: mismatch-tolerant overlap search (≤5 mismatches or 2
 - **Memory**: DupCounter uses 256 MB fixed Bloom Filter. Memory does not grow with data size.
 - **Q40**: `q40_bases` of 0 is normal — typical Illumina max quality is Q38–Q42.
 - **Single-end duplication** may be higher than paired-end (less hash information).
+- **Quality encoding**: input is assumed to be Phred+33 by default. Use `-6` / `--phred64` for Phred+64 input; quality characters are converted to Phred+33 while reading. The tool does not auto-detect quality encoding.
 - **TSV commas**: `--tsv-comma` outputs `61,329` — not all parsers handle this.
 - **JSON commas**: `--json-comma` outputs `"61,329"` as a *string*, not a number.
 - **Insert size**: Ported from fastp v1.3.3 — mismatch-tolerant overlap, bidirectional search, unknown = hist[max].

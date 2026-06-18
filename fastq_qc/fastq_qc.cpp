@@ -49,8 +49,8 @@ static inline int base2idx(char base) {
 // ============================================================
 static const int QUAL_HIST_SIZE = 128;
 static const int CYCLE_ARRS = 34;   // 8+8+8+8+1+1 arrays
-static const char Q20_CHAR = '5';   // ASCII 53 = Q20
-static const char Q30_CHAR = '?';   // ASCII 63 = Q30
+static const char Q20_CHAR = '5';   // ASCII 53 = Q20 (Phred+33)
+static const char Q30_CHAR = '?';   // ASCII 63 = Q30 (Phred+33)
 static const int    MIN_OVERLAP             = 30;    // minimum overlap for insert size
 static const int    OVERLAP_DIFF_LIMIT       = 5;     // max mismatches in overlap (fastp default)
 static const double OVERLAP_DIFF_PERCENT_LIMIT = 0.20; // max mismatch rate in overlap (fastp default)
@@ -189,10 +189,11 @@ struct FastqRead {
 // ============================================================
 class FastqReader {
 public:
-    explicit FastqReader(const string& filename)
+    explicit FastqReader(const string& filename, bool phred64 = false)
         : m_filename(filename)
         , m_file(NULL), m_gz_file(NULL), m_is_gzip(false)
         , m_buf(NULL), m_buf_end(0), m_buf_pos(0), m_eof(false)
+        , m_phred64(phred64)
     {
         if (filename == "-" || filename == "/dev/stdin") {
             // Use plain FILE* for stdin (no gzip detection needed)
@@ -254,6 +255,9 @@ public:
         r.seq     = seq;
         r.strand  = strand;
         r.quality = quality;
+        if (m_phred64) {
+            convert_phred64_to_33(r.quality);
+        }
         return true;
     }
 
@@ -269,6 +273,7 @@ private:
     size_t  m_buf_end;   // bytes of valid data in buffer
     size_t  m_buf_pos;   // current read offset in buffer
     bool    m_eof;
+    bool    m_phred64;
 
     // ---- File type detection ----
 
@@ -291,6 +296,14 @@ private:
 
     static bool is_gzip_file(const string& fn) {
         return has_gz_ext(fn) || has_gz_magic(fn);
+    }
+
+    static void convert_phred64_to_33(string& quality) {
+        for (size_t i = 0; i < quality.length(); i++) {
+            int q = (int)(unsigned char)quality[i] - (64 - 33);
+            if (q < 33) q = 33;
+            quality[i] = (char)q;
+        }
     }
 
     // ---- Buffered I/O ----
@@ -435,6 +448,7 @@ public:
 
         m_reads++;
         m_len_sum += len;
+        m_length_hist[len]++;
 
         const char* seq   = r.seq.c_str();
         const char* qual  = r.quality.c_str();
@@ -554,6 +568,7 @@ public:
     long    total_gc()           { if (!m_summarized) summarize(); return m_gc_bases; }
     long    mean_length()        { if (m_reads == 0) return 0; return m_len_sum / m_reads; }
     long*   qual_histogram()     { return m_qual_hist; }
+    const map<int, long>& length_histogram() const { return m_length_hist; }
 
     double  gc_content()         { if (!m_summarized) summarize(); return (m_bases > 0) ? (m_rate_percent?100.0:1.0) * m_gc_bases / m_bases : 0.0; }
     double  q20_rate()           { if (!m_summarized) summarize(); return (m_bases > 0) ? (m_rate_percent?100.0:1.0) * m_q20_total / m_bases : 0.0; }
@@ -620,6 +635,10 @@ public:
         }
         for (int i = 0; i < QUAL_HIST_SIZE; i++) {
             m_qual_hist[i] += other.m_qual_hist[i];
+        }
+        for (map<int, long>::const_iterator it = other.m_length_hist.begin();
+             it != other.m_length_hist.end(); ++it) {
+            m_length_hist[it->first] += it->second;
         }
 
         m_summarized = false;
@@ -705,6 +724,28 @@ public:
         os << indent << "\"cycle20_bases\": "  << fmt_json_long(cycle20_bases(), m_json_comma) << "," << endl;
         os << indent << "\"cycle20_rate\": "   << format_double(cycle20_rate(), m_decimals) << "," << endl;
 
+        // ---- Read length histogram ----
+        os << indent << "\"length_histogram\": {" << endl;
+        for (map<int, long>::const_iterator it = m_length_hist.begin();
+             it != m_length_hist.end(); ++it) {
+            if (it != m_length_hist.begin()) os << "," << endl;
+            os << indent << "\t\"" << it->first << "\": " << fmt_json_long(it->second, m_json_comma);
+        }
+        if (!m_length_hist.empty()) os << endl;
+        os << indent << "}," << endl;
+
+        // ---- Read length histogram percent ----
+        os << indent << "\"length_histogram_percent\": {" << endl;
+        for (map<int, long>::const_iterator it = m_length_hist.begin();
+             it != m_length_hist.end(); ++it) {
+            if (it != m_length_hist.begin()) os << "," << endl;
+            double ratio = (m_reads > 0) ? (double)it->second / m_reads : 0.0;
+            double val = m_rate_percent ? 100.0 * ratio : ratio;
+            os << indent << "\t\"" << it->first << "\": " << format_double(val, m_decimals);
+        }
+        if (!m_length_hist.empty()) os << endl;
+        os << indent << "}," << endl;
+
         // ---- Quality curves ----
         os << indent << "\"quality_curves\": {" << endl;
         const char* qnames[5] = { "A", "T", "C", "G", "mean" };
@@ -783,6 +824,26 @@ public:
         }
     }
 
+    // Export read length distribution as TSV
+    void write_length_tsv(ostream& os) const {
+        os << "length\tcount" << endl;
+        for (map<int, long>::const_iterator it = m_length_hist.begin();
+             it != m_length_hist.end(); ++it) {
+            os << it->first << "\t" << it->second << endl;
+        }
+    }
+
+    // Export read length distribution percent as TSV
+    void write_length_percent_tsv(ostream& os) const {
+        os << "length\tpercent" << endl;
+        for (map<int, long>::const_iterator it = m_length_hist.begin();
+             it != m_length_hist.end(); ++it) {
+            double ratio = (m_reads > 0) ? (double)it->second / m_reads : 0.0;
+            double val = m_rate_percent ? 100.0 * ratio : ratio;
+            os << it->first << "\t" << format_double(val, m_decimals) << endl;
+        }
+    }
+
 private:
     // ---- Memory management ----
 
@@ -841,6 +902,7 @@ private:
     long m_gc_bases;
     long m_qual_hist[QUAL_HIST_SIZE];
     long m_len_sum;
+    map<int, long> m_length_hist;
 
     // Curves (computed during summarization)
     vector<double> m_mean_qual_curve;
@@ -1054,9 +1116,10 @@ struct QcConfig {
     string sample_id;
     bool   tsv_comma;
     bool   json_comma;
+    bool   phred64;       // Convert input Phred+64 quality to Phred+33 on read
     int    threads;       // Number of worker threads (default: 1)
 
-    QcConfig() : rate_percent(false), decimals(6), insert_size_max(512), tsv_comma(false), json_comma(false), threads(1) {}
+    QcConfig() : rate_percent(false), decimals(6), insert_size_max(512), tsv_comma(false), json_comma(false), phred64(false), threads(1) {}
 };
 
 static void print_usage(const char* prog) {
@@ -1074,6 +1137,7 @@ static void print_usage(const char* prog) {
         "  -is <n>       Max insert size (default: 512). Paired-end only.\n"
         "  -p <prefix>   Export TSV tables (summary + per-cycle) with this prefix.\n"
         "  -s <id>       Sample ID for TSV output (default: derived from filename).\n"
+        "  -6, --phred64 Input uses Phred+64 quality scoring; convert to Phred+33.\n"
         "  --tsv-comma   Add thousands separators in TSV output.\n"
         "  --json-comma  Add thousands separators in JSON output (as strings).\n"
         "  -t <n>        Number of worker threads (default: 1).\n"
@@ -1116,6 +1180,8 @@ static bool parse_args(int argc, char* argv[], QcConfig& config) {
             config.tsv_comma = true;
         } else if (arg == "--json-comma") {
             config.json_comma = true;
+        } else if (arg == "-6" || arg == "--phred64") {
+            config.phred64 = true;
         } else if (arg == "-t") {
             if (++i >= argc) { cerr << "Error: -t requires an argument" << endl; return false; }
             config.threads = atoi(argv[i]);
@@ -1176,8 +1242,8 @@ int main(int argc, char* argv[]) {
     }
 
     // Prepare readers
-    FastqReader reader1(config.read1_file);
-    FastqReader* reader2 = paired ? new FastqReader(config.read2_file) : NULL;
+    FastqReader reader1(config.read1_file, config.phred64);
+    FastqReader* reader2 = paired ? new FastqReader(config.read2_file, config.phred64) : NULL;
 
     time_t start_t = time(NULL);
 
@@ -1525,6 +1591,39 @@ int main(int argc, char* argv[]) {
             if (cyc2.is_open()) {
                 stats2.write_cycles_tsv(cyc2);
                 fprintf(stderr, "TSV cycles R2 written to: %s\n", r2_cycles.c_str());
+            }
+        }
+
+        // Read length distribution TSV
+        string r1_lengths = config.tsv_prefix + "_R1_lengths.tsv";
+        ofstream len1(r1_lengths.c_str());
+        if (len1.is_open()) {
+            stats1.write_length_tsv(len1);
+            fprintf(stderr, "TSV lengths R1 written to: %s\n", r1_lengths.c_str());
+        }
+
+        if (paired) {
+            string r2_lengths = config.tsv_prefix + "_R2_lengths.tsv";
+            ofstream len2(r2_lengths.c_str());
+            if (len2.is_open()) {
+                stats2.write_length_tsv(len2);
+                fprintf(stderr, "TSV lengths R2 written to: %s\n", r2_lengths.c_str());
+            }
+        }
+
+        string r1_length_percent = config.tsv_prefix + "_R1_length_percent.tsv";
+        ofstream lenp1(r1_length_percent.c_str());
+        if (lenp1.is_open()) {
+            stats1.write_length_percent_tsv(lenp1);
+            fprintf(stderr, "TSV length percent R1 written to: %s\n", r1_length_percent.c_str());
+        }
+
+        if (paired) {
+            string r2_length_percent = config.tsv_prefix + "_R2_length_percent.tsv";
+            ofstream lenp2(r2_length_percent.c_str());
+            if (lenp2.is_open()) {
+                stats2.write_length_percent_tsv(lenp2);
+                fprintf(stderr, "TSV length percent R2 written to: %s\n", r2_length_percent.c_str());
             }
         }
     }

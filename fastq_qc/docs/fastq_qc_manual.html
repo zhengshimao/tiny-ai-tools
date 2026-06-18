@@ -167,7 +167,6 @@
   <li><a href="#output">输出文件格式</a></li>
   <li><a href="#samples">输出示例</a></li>
   <li><a href="#notes">注意事项</a></li>
-  <li><a href="#fastp-diff">与 fastp v1.3.3 的差异</a></li>
 </ol>
 </div>
 
@@ -213,16 +212,16 @@ Usage: ./fastq_qc [options] -i &lt;read1.fastq&gt; [-I &lt;read2.fastq&gt;]
 
 <h4>3.4 百分比模式 + 千分位 + 样本 ID</h4>
 <div class="code-block"><span class="p">$</span> ./fastq_qc -i R1.fq.gz -I R2.fq.gz \
-    -o report.json -p sample1 -s TCR001 \
+    -o report.json -p sample1 -s healthy12 \
     -percent -d 2 --tsv-comma</div>
 
-<h4>3.5 多线程加速</h4>
-<div class="code-block"><span class="p">$</span> ./fastq_qc -i R1.fq.gz -I R2.fq.gz -t 4 -o report.json</div>
+<h4>3.5 Phred+64 旧格式数据</h4>
+<div class="code-block"><span class="p">$</span> ./fastq_qc -i old_illumina.fastq -6 -o qc_report.json</div>
+
+<h4>3.6 从 stdin 读取</h4>
+<div class="code-block"><span class="p">$</span> cat sample.fastq | ./fastq_qc -i -</div>
 
 <p style="color:var(--muted);font-size:.88em;"><strong>提示</strong>：以上示例中反斜杠 <code>\</code> 是 bash 的换行续行符，用于将长命令拆分为多行，实际输入时可写为一行或保留 <code>\</code> 换行。</p>
-
-<h4>3.5 从 stdin 读取</h4>
-<div class="code-block"><span class="p">$</span> cat sample.fastq | ./fastq_qc -i -</div>
 
 <!-- ==================== 4. OPTIONS ==================== -->
 <h2 id="options">4. 命令行选项</h2>
@@ -232,11 +231,12 @@ Usage: ./fastq_qc [options] -i &lt;read1.fastq&gt; [-I &lt;read2.fastq&gt;]
 <tr><td><code>-i</code></td><td><code>&lt;file&gt;</code></td><td>—</td><td><strong>必选</strong>。输入 FASTQ（双端时为 R1）。支持 <code>.gz</code>，<code>-</code> 为 stdin</td></tr>
 <tr><td><code>-I</code></td><td><code>&lt;file&gt;</code></td><td>—</td><td>R2 FASTQ 文件，指定后进入<strong>双端模式</strong></td></tr>
 <tr><td><code>-o</code></td><td><code>&lt;file&gt;</code></td><td>—</td><td>JSON 报告输出路径；不指定则不输出 JSON</td></tr>
-<tr><td><code>-p</code></td><td><code>&lt;prefix&gt;</code></td><td>—</td><td>TSV 文件输出前缀。单端：<code>&lt;prefix&gt;_summary.tsv</code> + cycles；双端：<code>_R1_summary</code>, <code>_R2_summary</code>, <code>_combined_summary</code> + cycles</td></tr>
+<tr><td><code>-p</code></td><td><code>&lt;prefix&gt;</code></td><td>—</td><td>TSV 文件输出前缀。单端：<code>&lt;prefix&gt;_summary.tsv</code> + cycles + lengths；双端：<code>_R1_summary</code>, <code>_R2_summary</code>, <code>_combined_summary</code> + cycles + lengths</td></tr>
 <tr><td><code>-s</code></td><td><code>&lt;id&gt;</code></td><td>文件名</td><td>TSV 中使用的样本 ID</td></tr>
 <tr><td><code>-percent</code></td><td>—</td><td>off</td><td>rate 值以百分数 (0–100) 输出；<strong>默认小数</strong> (0.0–1.0)</td></tr>
-t<tr><td><code>-t</code></td><td><code>&lt;n&gt;</code></td><td><code>1</code></td><td>Worker 线程数；&gt;1 时启用批处理多线程</td></tr>
 <tr><td><code>-d</code></td><td><code>&lt;n&gt;</code></td><td><code>6</code></td><td>rate 值保留的小数位数</td></tr>
+<tr><td><code>-t</code></td><td><code>&lt;n&gt;</code></td><td><code>1</code></td><td>Worker 线程数；&gt;1 时启用批处理多线程</td></tr>
+<tr><td><code>-6</code><br><code>--phred64</code></td><td>—</td><td>off</td><td>输入 FASTQ 使用 Phred+64 质量编码；读取时自动转换为 Phred+33</td></tr>
 <tr><td><code>-is</code></td><td><code>&lt;n&gt;</code></td><td><code>512</code></td><td>最大 insert size（仅双端）</td></tr>
 <tr><td><code>--tsv-comma</code></td><td>—</td><td>off</td><td>TSV 中数值加千分位分隔符</td></tr>
 <tr><td><code>--json-comma</code></td><td>—</td><td>off</td><td>JSON 中数值加千分位（以字符串输出）</td></tr>
@@ -274,7 +274,7 @@ t<tr><td><code>-t</code></td><td><code>&lt;n&gt;</code></td><td><code>1</code></
     </div>
     <div class="flow-col">
       <div class="flow-n flow-g">DupCounter::add_read() / add_pair()</div>
-      <small style="margin-top:4px">Bloom Filter 判重</small>
+      <small style="margin-top:4px">FNV-1a hash 判重</small>
     </div>
     <div class="flow-col">
       <div class="flow-n flow-g">InsertSizeStats::process_pair()</div>
@@ -284,7 +284,6 @@ t<tr><td><code>-t</code></td><td><code>&lt;n&gt;</code></td><td><code>1</code></
 
   <div class="flow-a">&#x2193;</div>
   <div class="flow-n flow-p">QcStats::summarize() 汇总曲线与全局指标</div>
-  <small style="margin-top:4px; color: var(--muted)">-t &gt;1 时批处理多线程并行，QcStats 线程局部 → 合并</small>
   <div class="flow-a">&#x2193;</div>
 
   <div class="flow-row2">
@@ -341,9 +340,13 @@ t<tr><td><code>-t</code></td><td><code>&lt;n&gt;</code></td><td><code>1</code></
 <tr><td><code>print()</code></td><td>输出对齐的文本摘要（stdout）</td></tr>
 <tr><td><code>report_json(os)</code></td><td>输出 JSON 片段</td></tr>
 <tr><td><code>write_cycles_tsv(os)</code></td><td>输出 per-cycle TSV 表</td></tr>
-<tr><td><code>gc_content()</code></td><td>GC 含量（受 <code>-no-percent</code> 控制）</td></tr>
+<tr><td><code>gc_content()</code></td><td>GC 含量（受 <code>-percent</code> 控制）</td></tr>
 <tr><td><code>q20/30/40_rate()</code></td><td>Q20/Q30/Q40 比例</td></tr>
-<tr><td><code>cycle20_rate()</code></td><td>第 20 个测序循环 (0-based 索引 19) 处质量 ≥ Q20 的碱基比例，详见<a href="#cycle20-def">下方定义说明</a></td></tr>
+<tr><td><code>cycle20_rate()</code></td><td>第 20 个测序循环 (0-based 索引 19) 处质量 ≥ Q20 的碱基比例</td></tr>
+	<tr><td><code>mean_length()</code></td><td>平均 read 长度</td></tr>
+	<tr><td><code>length_histogram()</code></td><td>read 长度分布直方图 (map&lt;int,long&gt;)，每处理一条 read 自动更新</td></tr>
+	<tr><td><code>write_length_tsv(os)</code></td><td>输出 read 长度分布 TSV (两列: length, count)</td></tr>
+	<tr><td><code>write_length_percent_tsv(os)</code></td><td>输出 read 长度百分比 TSV (两列: length, percent)
 </table></div>
 
 <h4>6.3.1 碱基编码 (base2idx)</h4>
@@ -359,7 +362,7 @@ t<tr><td><code>-t</code></td><td><code>&lt;n&gt;</code></td><td><code>1</code></
 <pre><code>static inline int base2idx(char base) { return base &amp; 0x07; }</code></pre>
 
 <h3>6.4 DupCounter <span class="badge alg">class</span></h3>
-<p>基于 FNV-1a 64-bit hash + unordered_set 的精确去重统计。双端时将 R1 和 R2 的 hash 通过 boost::hash_combine 合并。</p>
+<p>基于 FNV-1a 64-bit hash + BloomFilter（固定 256 MB）的去重统计，线程安全（mutex 保护）。双端时将 R1 和 R2 的 hash 通过 boost::hash_combine 合并。</p>
 <div class="table-wrap"><table>
 <tr><th>方法</th><th>说明</th></tr>
 <tr><td><code>add_read(r)</code></td><td>单端：hash 序列并判重</td></tr>
@@ -368,7 +371,7 @@ t<tr><td><code>-t</code></td><td><code>&lt;n&gt;</code></td><td><code>1</code></
 </table></div>
 
 <h3>6.5 InsertSizeStats <span class="badge alg">class</span></h3>
-<p>仅双端生效。将 R2 反向互补后，与 R1 后缀做精确重叠匹配，计算 insert_size = len(R1) + len(R2) - overlap。</p>
+<p>仅双端生效。将 R2 反向互补后，与 R1 后缀做容错重叠匹配（≤5 mismatch 或 20%），计算 insert_size = len(R1) + len(R2) - overlap。</p>
 <div class="table-wrap"><table>
 <tr><th>方法</th><th>说明</th></tr>
 <tr><td><code>process_pair(r1, r2)</code></td><td>计算 insert size 并更新直方图</td></tr>
@@ -400,9 +403,10 @@ m_cycle_total_qual     = m_cycle_buf + [33]     * bufLen  // 每 cycle 总质量
 <h4>汇总 (summarize)</h4>
 <p>遍历所有 cycle，计算：</p>
 <ul>
-  <li><strong>全局指标</strong>：total_bases, Q20/Q30/Q40 totals, GC bases</li>
+  <li><strong>全局指标</strong>：total_bases, Q20/Q30/Q40 totals, GC bases, mean_length</li>
   <li><strong>质量曲线</strong>：mean_qual, A/T/C/G per-base mean qual</li>
   <li><strong>含量曲线</strong>：A/T/C/G/N per-cycle fraction, GC per-cycle fraction</li>
+  <li><strong>长度分布</strong>：每条 read 处理时自动统计到 <code>m_length_hist</code> 直方图中，汇总后可输出 count 和 percent 两种 TSV</li>
 </ul>
 
 <h3>7.2 重复检测 (DupCounter)</h3>
@@ -412,12 +416,12 @@ m_cycle_total_qual     = m_cycle_buf + [33]     * bufLen  // 每 cycle 总质量
   <div class="flow-n flow-p">FNV-1a 64-bit hash</div>
   <div class="flow-a">&#x2193;</div>
   <div class="flow-row2">
-    <div class="flow-n flow-g">hash 已在 unordered_set 中</div>
-    <div class="flow-n flow-r">hash 不在 set 中</div>
+    <div class="flow-n flow-g">hash 在 BloomFilter 中（可能重复）</div>
+    <div class="flow-n flow-r">hash 不在 BloomFilter 中（首次出现）</div>
   </div>
   <div style="display:flex; gap:6rem; margin-top:4px;">
     <span style="color:#cf222e">→ m_dup++</span>
-    <span style="color:#1a7f37">→ 插入 set</span>
+    <span style="color:#1a7f37">→ 标记 bit 位</span>
   </div>
   <div class="flow-a">&#x2193;</div>
   <div class="flow-n flow-s">dup_rate = m_dup / m_total</div>
@@ -434,7 +438,7 @@ m_cycle_total_qual     = m_cycle_buf + [33]     * bufLen  // 每 cycle 总质量
   <div class="flow-n flow-p">从最大可能重叠开始 → 递减至 30bp</div>
   <div class="flow-a">&#x2193;</div>
   <div class="flow-row2">
-    <div class="flow-n flow-g">memcmp 精确匹配</div>
+    <div class="flow-n flow-g">容错匹配（≤5 mismatch）</div>
     <div class="flow-n flow-r">无匹配 ≥ 30bp</div>
   </div>
   <div style="display:flex; gap:3rem; margin-top:4px;">
@@ -452,7 +456,7 @@ m_cycle_total_qual     = m_cycle_buf + [33]     * bufLen  // 每 cycle 总质量
   <br><br>
   <strong>第 20 个测序循环（即 reads 中第 20 个碱基位置，0-based 索引 19）处，质量值 ≥ Q20 (Phred 20, ASCII '5') 的碱基占比。</strong>
   <br><br>
-  计算公式：<code>cycle20_rate = m_cycle_q20[0..7][19] 之和 / m_cycle_total_base[19]</code>，结果受 <code>-no-percent</code> / <code>-d</code> 选项控制。
+  计算公式：<code>cycle20_rate = m_cycle_q20[0..7][19] 之和 / m_cycle_total_base[19]</code>，结果受 <code>-percent</code> / <code>-d</code> 选项控制。
   <br><br>
   <em>常见歧义对照：</em>
   <table>
@@ -503,14 +507,29 @@ sample.FQ.GZ
     "q40_rate": 0.00,
     "gc_bases": 8486112,
     "gc_content": 53.04,
-    "cycle20_rate": 99.90,
+    "cycle20_bases": 61266,
+	    "cycle20_rate": 99.90,
+	    "length_histogram": { "260": 61329 },
+	    "length_histogram_percent": { "260": 100.0 },
     "quality_curves": { "A":[...], "T":[...], "C":[...], "G":[...], "mean":[...] },
     "content_curves": { "A":[...], "T":[...], "C":[...], "G":[...], "N":[...], "GC":[...] },
     "quality_histogram": { "33": 12345, ... }
   },
   "read2": { ... },           // 仅双端
   "total_reads": 122658,      // 仅双端
-  "total_bases": 31995914,    // 仅双端
+  "total_bases": 31995914,
+  "total_cycles": 301,
+  "mean_length": 260,
+  "gc_bases": 16970224,
+  "gc_content": 53.01,
+  "q20_bases": 30243968,
+  "q20_rate": 94.55,
+  "q30_bases": 27797782,
+  "q30_rate": 86.87,
+  "q40_bases": 0,
+  "q40_rate": 0.00,
+  "cycle20_bases": 122619,
+  "cycle20_rate": 99.10,
   "duplication": { "rate": 5.86 },
   "insert_size": {            // 仅双端
     "peak": 259,
@@ -524,35 +543,36 @@ sample.FQ.GZ
 <tr><th>模式</th><th>文件</th><th>列</th></tr>
 <tr><td>单端</td><td><code>&lt;prefix&gt;_summary.tsv</code></td><td>sample, total_reads, total_bases, total_cycles, mean_length, gc_bases, gc_content, q20_bases, q20_rate, q30_bases, q30_rate, q40_bases, q40_rate, cycle20_rate, dup_rate</td></tr>
 <tr><td>单端</td><td><code>&lt;prefix&gt;_R1_cycles.tsv</code></td><td>cycle, mean_qual, A_qual, T_qual, C_qual, G_qual, A_content, T_content, C_content, G_content, N_content, GC_content</td></tr>
-<tr><td>双端</td><td><code>&lt;prefix&gt;_R1_summary.tsv</code></td><td>R1 独立指标 (同上15列) + dup_rate + insert_size_peak + insert_size_unknown</td></tr>
-<tr><td>双端</td><td><code>&lt;prefix&gt;_R2_summary.tsv</code></td><td>R2 独立指标 (同上15列) + dup_rate + insert_size_peak + insert_size_unknown</td></tr>
-<tr><td>双端</td><td><code>&lt;prefix&gt;_combined_summary.tsv</code></td><td>R1+R2 合并指标 (同上15列) + dup_rate + insert_size_peak + insert_size_unknown</td></tr>
+<tr><td>双端</td><td><code>&lt;prefix&gt;_R1_summary.tsv</code></td><td>R1 独立指标 + dup_rate + insert_size_peak + insert_size_unknown</td></tr>
+<tr><td>双端</td><td><code>&lt;prefix&gt;_R2_summary.tsv</code></td><td>R2 独立指标 + dup_rate + insert_size_peak + insert_size_unknown</td></tr>
+<tr><td>双端</td><td><code>&lt;prefix&gt;_combined_summary.tsv</code></td><td>R1+R2 合并指标 + dup_rate + insert_size_peak + insert_size_unknown</td></tr>
 <tr><td>双端</td><td><code>&lt;prefix&gt;_R1_cycles.tsv</code><br><code>&lt;prefix&gt;_R2_cycles.tsv</code></td><td>per-cycle 12 列（同上）</td></tr>
+	<tr><td>双端 / 单端</td><td><code>&lt;prefix&gt;_R1_lengths.tsv</code><br><code>&lt;prefix&gt;_R1_length_percent.tsv</code></td><td>read 长度分布（length, count）和百分比（length, percent）。双端具同样的 R2 版本</td></tr>
 </table></div>
 
 <!-- ==================== 10. SAMPLES ==================== -->
 <h2 id="samples">10. 输出示例</h2>
 
-<h4>10.1 文本摘要 (stdout, 默认小数格式)</h4>
+<h4>10.1 文本摘要 (stdout)</h4>
 <div class="code-block">=== QC Summary ===
   Total reads:               61,329
   Total bases:           15,999,479
   Mean length:                  260 bp
-  GC bases:               8,486,112  (0.530399)
-  Q20 bases:             15,593,674  (0.974636)
-  Q30 bases:             14,726,729  (0.920451)
-  Q40 bases:                      0  (0.000000)
+  GC bases:               8,486,112  (53.04 %)
+  Q20 bases:             15,593,674  (97.46 %)
+  Q30 bases:             14,726,729  (92.05 %)
+  Q40 bases:                      0  (0.00 %)
   Total cycles:                 301
-  Cycle 20 Q20:              61,266  (0.998973)
+  Cycle 20 Q20:              61,266  (99.90 %)
 
 === Duplication ===
-  Duplication rate:        0.058602
+  Duplication rate:         13.20 %
 
 === Insert Size ===
   Insert size peak:             259
-  Unknown pairs:                  0</div>
+  Unknown pairs:             34,931</div>
 
-<h4>10.2 JSON (单端, 默认小数 6dp)</h4>
+<h4>10.2 JSON (单端，含 pretty-print 曲线)</h4>
 <div class="code-block">{
   "read1": {
     "total_reads": 61329,
@@ -560,15 +580,17 @@ sample.FQ.GZ
     "mean_length": 260,
     "total_cycles": 301,
     "q20_bases": 15593674,
-    "q20_rate": 0.974636,
+    "q20_rate": 97.46,
     "q30_bases": 14726729,
-    "q30_rate": 0.920451,
+    "q30_rate": 92.05,
     "q40_bases": 0,
-    "q40_rate": 0.000000,
+    "q40_rate": 0.00,
     "gc_bases": 8486112,
-    "gc_content": 0.530399,
+    "gc_content": 53.04,
     "cycle20_bases": 61266,
-    "cycle20_rate": 0.998973,
+	    "cycle20_rate": 99.90,
+	    "length_histogram": { "260": 61329 },
+	    "length_histogram_percent": { "260": 100.0 },
     "quality_curves": {
       "A":[33.3928,33.6323,33.6983,32.0314,33.7819,36.4466,37.5358,35.5550,37.2928,34.6134,
             33.3777,33.4867,36.2417,36.3467,36.7373,35.3426,36.9811,37.3348,37.1728,36.8401,
@@ -588,23 +610,31 @@ sample.FQ.GZ
       "70": 1830918, "71": 10499889
     }
   },
-  "duplication": { "rate": 0.058602 }
+  "duplication": { "rate": 13.20 }
 }</div>
 
 <h4>10.3 TSV Summary (单端)</h4>
-<div class="code-block">sample             total_reads  total_bases  total_cycles  mean_length  gc_bases  gc_content  q20_bases  q20_rate  q30_bases  q30_rate  q40_bases  q40_rate  cycle20_bases  cycle20_rate  dup_rate
-TCR001.clean.R1  61,329       15,999,479   301           260          8,486,112  0.530399    15,593,674  0.974636  14,726,729  0.920451  0          0.000000  61,266         0.998973      0.058602</div>
+<div class="code-block">sample        total_reads  total_bases  mean_length  gc_content  q20_rate  q30_rate  q40_bases  q40_rate  cycle20_rate  dup_rate
+healthy12     61,329       15,999,479   260          53.04       97.46     92.05     0          0.00      99.90         13.20</div>
+
+<div class="code-block"># healthy12_R1_lengths.tsv
+length  count
+260     61329
+
+# healthy12_R1_length_percent.tsv
+length  percent
+260     100.0</div>
 
 <h4>10.4 TSV Summary (双端 R1 / R2 / Combined)</h4>
-<div class="code-block"># TCR001_pe_R1_summary.tsv (header line)
-sample  total_reads  total_bases  total_cycles  mean_length  gc_bases   gc_content  q20_bases   q20_rate  q30_bases   q30_rate  q40_bases  q40_rate  cycle20_bases  cycle20_rate  dup_rate  insert_size_peak  insert_size_unknown
-TCR001.clean.R1  61,329  15,999,479  301  260  8,486,112  0.530399  15,593,674  0.974636  14,726,729  0.920451  0  0.000000  61,266  0.998973  0.058602  259  0
+<div class="code-block"># healthy12_R1_summary.tsv
+sample     total_reads  total_bases  total_cycles  mean_length  gc_bases  gc_content  q20_bases  q20_rate  q30_bases  q30_rate  q40_bases  q40_rate  cycle20_rate  dup_rate  insert_size_peak  insert_size_unknown
+healthy12  61,329       15,999,479   301          260          8,486,112  53.04       15,593,674  97.46     14,726,729  92.05     0          0.00      99.90         5.86      259               34,931
 
-# TCR001_pe_R2_summary.tsv
-TCR001.clean.R1  61,329  15,996,435  301  260  8,476,519  0.529901  14,686,234  0.918094  12,942,953  0.809115  0  0.000000  60,653  0.988977  0.058602  259  0
+# healthy12_R2_summary.tsv
+healthy12  61,329       15,996,435   301          260          8,479,511  52.99       14,686,912  91.81     12,940,716  80.91     0          0.00      95.73         5.86      259               34,931
 
-# TCR001_pe_combined_summary.tsv
-TCR001.clean.R1  122,658  31,995,914  301  260  16,962,631  0.530150  30,279,908  0.946368  27,669,682  0.864788  0  0.000000  121,919  0.993975  0.058602  259  0</div>
+# healthy12_combined_summary.tsv
+healthy12  122,658      31,995,914   301          260          16,965,623 53.01       30,280,586  94.64     27,667,445  86.48     0          0.00      97.40         5.86      259               34,931</div>
 
 <h4>10.5 TSV Cycles (前 3 行)</h4>
 <div class="code-block">cycle  mean_qual  A_qual   T_qual   C_qual   G_qual   A_content  T_content  C_content  G_content  N_content  GC_content
@@ -627,9 +657,9 @@ Elapsed time: 4 sec (0 min 4 sec)</div>
 <h4>10.7 stderr 运行日志 (单端)</h4>
 <div class="code-block">Processing single-end FASTQ data...
 Total reads processed: 61,329
-JSON report written to: test_results/TCR001_R1.json
-TSV summary written to: test_results/TCR001_R1_summary.tsv
-TSV cycles R1 written to: test_results/TCR001_R1_R1_cycles.tsv
+JSON report written to: test_results/healthy12_R1.json
+TSV summary written to: test_results/healthy12_R1_summary.tsv
+TSV cycles R1 written to: test_results/healthy12_R1_R1_cycles.tsv
 Elapsed time: 1 sec (0 min 1 sec)</div>
 
 <!-- ==================== 11. NOTES ==================== -->
@@ -648,11 +678,11 @@ Elapsed time: 1 sec (0 min 1 sec)</div>
 </div>
 
 <div class="warn-box">
-  <strong>内存使用</strong>：去重使用 256 MB Bloom Filter，不会随数据量增长。多线程共享（数亿条 read）时可能消耗 GB 级内存。如在内存受限环境中使用，请注意。
+  <strong>内存使用</strong>：DupCounter 使用固定 256 MB 的 BloomFilter，内存不随数据量增长。
 </div>
 
 <div class="info-box">
-  <strong>插入片段大小</strong>：仅当 <code>-I</code> 指定 R2 时计算。算法移植自 fastp v1.3.3：容错 overlap（≤5 mismatch 或 20%），双向搜索，unknown = hist[max]。
+  <strong>插入片段大小</strong>：仅当 <code>-I</code> 指定 R2 时计算。估算依赖重叠分析（≥30bp 精确匹配），不重叠的 pair 归入 unknown。
 </div>
 
 <div class="info-box">
@@ -671,83 +701,13 @@ Elapsed time: 1 sec (0 min 1 sec)</div>
   <strong>JSON 千分位</strong>：开启 <code>--json-comma</code> 后数值以字符串 <code>"61,329"</code> 输出，不再是 JSON number 类型。下游解析需注意转换。
 </div>
 
+<div class="warn-box">
+  <strong>Phred+64 编码</strong>：旧版 Illumina 数据（1.8 之前）使用 Phred+64 质量编码。使用 <code>-6</code> 或 <code>--phred64</code> 选项后，FastqReader 会在读取时将质量值自动转换为 Phred+33（每个碱基 ASCII 码减 31，下限为 33），后续所有分析均基于 Phred+33。
+</div>
+
 <div class="info-box">
   <strong>gzip 检测</strong>：通过文件扩展名 <code>.gz</code> 和 magic bytes <code>0x1F 0x8B</code> 双重检测。即使文件没有 <code>.gz</code> 扩展名，只要内容以 gzip 魔数开头即可正确解压。
 </div>
-
-<!-- ==================== 12. FASTP DIFF ==================== -->
-<h2 id="fastp-diff">12. 与 fastp v1.3.3 的差异</h2>
-
-<p>fastq_qc 的核心统计算法移植自 fastp v1.3.3，两者在以下方面对齐或存在差异：</p>
-
-<h3>12.1 完全一致的指标</h3>
-<div class="table-wrap"><table>
-<tr><th>指标</th><th>一致性</th><th>说明</th></tr>
-<tr><td>total_reads / total_bases / total_cycles</td><td class="match">完全一致</td><td>直接计数，无算法差异</td></tr>
-<tr><td>q20_bases / q30_bases / q40_bases</td><td class="match">完全一致</td><td>相同的 per-cycle Q20/Q30/Q40 统计算法</td></tr>
-<tr><td>quality_curves / content_curves</td><td class="match">完全一致</td><td>逐 cycle 碱基质量与组成曲线</td></tr>
-<tr><td>mean_length</td><td class="match">完全一致</td><td>total_bases / total_reads</td></tr>
-<tr><td>quality_histogram</td><td class="match">完全一致</td><td>质量值分布直方图</td></tr>
-<tr><td>insert_size peak</td><td class="match">完全一致</td><td>histogram 中计数最大的 bin 索引</td></tr>
-</table></div>
-
-<h3>12.2 微小差异</h3>
-<div class="table-wrap"><table>
-<tr><th>指标</th><th>差异来源</th><th>差值范围</th></tr>
-<tr><td>gc_content / gc_bases</td><td>整数 GC 碱基计数 / 总碱基数，浮点精度差异</td><td>~0.001</td></tr>
-<tr><td>q20_rate / q30_rate</td><td>同上 — 整数计数除法的浮点舍入</td><td>~0.001</td></tr>
-<tr><td>cycle20_bases / cycle20_rate</td><td>per-cycle Q20 在 cycle 20 处的累计值，算法相同</td><td>~0</td></tr>
-</table></div>
-
-<h3>12.3 重要差异</h3>
-<div class="table-wrap"><table>
-<tr><th>对比项</th><th>fastp v1.3.3</th><th>fastq_qc</th></tr>
-<tr>
-  <td><strong>去重算法</strong></td>
-  <td>Bloom Filter + SIMD 素数哈希，内存 1G–32G 可配置，概率检测</td>
-  <td>Bloom Filter + FNV-1a 哈希 (Kirsch-Mitzenmacher)，<strong>固定 256 MB</strong>，mutex 线程安全</td>
-</tr>
-<tr>
-  <td><strong>去重率偏差</strong></td>
-  <td>~53.58% (RNA001)</td>
-  <td><strong>~53.67%</strong> (+0.09%，Bloom Filter 参数不同导致的 0.1% 假阳性差异)</td>
-</tr>
-<tr>
-  <td><strong>insert_size unknown</strong></td>
-  <td>在<strong>原始 reads</strong>上做 overlap 检测（adapter trimming 之前），能利用 adapter 序列找到更多 overlap</td>
-  <td>读取 fastp 输出的 Clean 文件时为<strong>已裁剪 reads</strong>，adapter 序列已切除 → overlap 检出减少 → unknown 升高</td>
-</tr>
-<tr>
-  <td><strong>多线程</strong></td>
-  <td>完整流水线：Reader ×2 + Worker ×N + Writer ×N，SPSC 无锁队列，SIMD 加速</td>
-  <td>批处理模型：读 500K reads 为一批 → N 线程并行 → 合并统计；简单 mutex 共享 Bloom Filter</td>
-</tr>
-<tr>
-  <td><strong>速率格式</strong></td>
-  <td>JSON 中百分比 (0–100)</td>
-  <td><strong>默认小数</strong> (0.0–1.0, 6dp)，<code>-percent</code> 切换为百分比</td>
-</tr>
-<tr>
-  <td><strong>输入处理</strong></td>
-  <td>可同时实现 adapter/quality/polyG trimming + QC</td>
-  <td><strong>纯 QC 工具</strong>，不做任何 reads 修改，仅统计</td>
-</tr>
-</table></div>
-
-<h3>12.4 RNA001 基准测试</h3>
-<div class="table-wrap"><table>
-<tr><th>指标</th><th>fastp (after)</th><th>fastq_qc (Clean, t=4)</th><th>差异</th></tr>
-<tr><td>R1 total_reads</td><td>20,007,861</td><td>20,007,861</td><td>0</td></tr>
-<tr><td>R1 total_bases</td><td>2,987,954,103</td><td>2,987,954,103</td><td>0</td></tr>
-<tr><td>R1 q20_bases</td><td>2,923,704,980</td><td>2,923,704,980</td><td>0</td></tr>
-<tr><td>R1 q30_bases</td><td>2,875,834,172</td><td>2,875,834,172</td><td>0</td></tr>
-<tr><td>Combined gc_content</td><td>0.478502</td><td>0.478502</td><td>+0.000000</td></tr>
-<tr><td>Combined q20_rate</td><td>0.980664</td><td>0.980664</td><td>−0.000000</td></tr>
-<tr><td>Duplication rate</td><td>0.535827</td><td>0.536722</td><td><strong>+0.000895</strong> (+0.17%)</td></tr>
-<tr><td>Insert size peak</td><td>268</td><td>268</td><td>0</td></tr>
-<tr><td>Insert size unknown</td><td>866,263</td><td>10,444,537</td><td>见 12.3 说明</td></tr>
-<tr><td>耗时</td><td>—</td><td>4 min 43 sec (t=4)</td><td>—</td></tr>
-</table></div>
 
 <footer>
   <p>fastq_qc &mdash; core algorithms adapted from <a href="https://github.com/OpenGene/fastp/archive/refs/tags/v1.3.3.zip">fastp v1.3.3</a> by Shifu Chen et al.</p>
