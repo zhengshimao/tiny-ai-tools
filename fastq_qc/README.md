@@ -276,7 +276,7 @@ cycle20_rate = Σ m_cycle_q20[b][19] / m_cycle_total_base[19]
 | 去重率 (RNA001) | 53.58% | **53.67%** (+0.09%) |
 | insert_size unknown | 在原始 reads 上计算 overlap (含 adapter) | 在最终 reads 上计算 |
 | 多线程 | Reader×2 + Worker×N + Writer×N, SPSC 队列 | 批处理: 500K reads/批 → N 线程并行 |
-| 速率格式 | JSON 百分比 (0–100) | **默认小数** (0.0–1.0, 6dp), `-percent` 切百分比 |
+| Rate 格式 | JSON 百分比 (0–100) | **默认小数** (0.0–1.0, 6dp), `-percent` 切百分比 |
 | 核心 QC 指标 | identical | identical (total_reads/bases/cycles/q20/q30/q40 完全一致) |
 
 **基准测试** (RNA001 Clean, 2000 万 PE reads):
